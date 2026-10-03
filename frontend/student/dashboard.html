@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Student Dashboard | CampusNexus</title>
+
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/dashboard.css">
+    <link rel="stylesheet" href="../css/responsive.css">
+</head>
+
+<body>
+
+    <div data-navbar></div>
+
+    <aside data-sidebar></aside>
+
+    <main class="main-content">
+
+        <section class="dashboard-section">
+            <h1>Student Dashboard</h1>
+            <p>Welcome back! Here's what's happening on campus.</p>
+        </section>
+
+
+        <!-- ==============================
+             STAT CARDS
+        =============================== -->
+
+        <section class="dashboard-grid">
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <span class="stat-label">Membership</span>
+                </div>
+
+                <div class="stat-value" id="membership-status">
+                    Active
+                </div>
+
+                <div class="stat-description">
+                    Current membership status
+                </div>
+            </div>
+
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <span class="stat-label">Upcoming Events</span>
+                </div>
+
+                <div class="stat-value" id="upcoming-events">
+                    0
+                </div>
+
+                <div class="stat-description">
+                    Events available for you
+                </div>
+            </div>
+
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <span class="stat-label">Active Tickets</span>
+                </div>
+
+                <div class="stat-value" id="active-tickets">
+                    0
+                </div>
+
+                <div class="stat-description">
+                    Your active event tickets
+                </div>
+            </div>
+
+
+            <div class="stat-card">
+                <div class="stat-card-header">
+                    <span class="stat-label">Pending Orders</span>
+                </div>
+
+                <div class="stat-value" id="pending-orders">
+                    0
+                </div>
+
+                <div class="stat-description">
+                    Orders waiting for completion
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- ==============================
+             DASHBOARD CONTENT
+        =============================== -->
+
+        <section class="dashboard-columns">
+
+            <!-- LEFT COLUMN -->
+
+            <div>
+
+                <!-- UPCOMING EVENTS -->
+
+                <div class="dashboard-section">
+
+                    <h2>Upcoming Events</h2>
+
+                    <p>
+                        Events you may be interested in.
+                    </p>
+
+                    <div class="card">
+
+                        <div
+                            class="activity-list"
+                            id="upcoming-events-list"
+                        >
+
+                            <div class="activity-item">
+
+                                <div class="activity-content">
+
+                                    <div class="activity-title">
+                                        No upcoming events
+                                    </div>
+
+                                    <div class="activity-meta">
+                                        New events will appear here.
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <br>
+
+                    <a
+                        href="events.html"
+                        class="btn btn-secondary"
+                    >
+                        View All Events
+                    </a>
+
+                </div>
+
+
+                <!-- MY TICKETS -->
+
+                <div class="dashboard-section">
+
+                    <h2>My Tickets</h2>
+
+                    <p>
+                        Your active event tickets.
+                    </p>
+
+                    <div class="card">
+
+                        <div
+                            class="activity-list"
+                            id="tickets-list"
+                        >
+
+                            <div class="activity-item">
+
+                                <div class="activity-content">
+
+                                    <div class="activity-title">
+                                        No active tickets
+                                    </div>
+
+                                    <div class="activity-meta">
+                                        Your event tickets will appear here.
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <br>
+
+                    <a
+                        href="tickets.html"
+                        class="btn btn-secondary"
+                    >
+                        View Tickets
+                    </a>
+
+                </div>
+
+            </div>
+
+
+            <!-- RIGHT COLUMN -->
+
+            <div>
+
+                <!-- MY ORDERS -->
+
+                <div class="dashboard-section">
+
+                    <h2>My Orders</h2>
+
+                    <p>
+                        Recent merchandise orders.
+                    </p>
+
+                    <div class="card">
+
+                        <div
+                            class="activity-list"
+                            id="orders-list"
+                        >
+
+                            <div class="activity-item">
+
+                                <div class="activity-content">
+
+                                    <div class="activity-title">
+                                        No pending orders
+                                    </div>
+
+                                    <div class="activity-meta">
+                                        Your orders will appear here.
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <br>
+
+                    <a
+                        href="orders.html"
+                        class="btn btn-secondary"
+                    >
+                        View Orders
+                    </a>
+
+                </div>
+
+
+                <!-- ANNOUNCEMENTS -->
+
+                <div class="dashboard-section">
+
+                    <h2>Announcements</h2>
+
+                    <p>
+                        Latest campus updates.
+                    </p>
+
+                    <div class="card">
+
+                        <div
+                            class="activity-list"
+                            id="announcements-list"
+                        >
+
+                            <div class="activity-item">
+
+                                <div class="activity-content">
+
+                                    <div class="activity-title">
+                                        No announcements
+                                    </div>
+
+                                    <div class="activity-meta">
+                                        New announcements will appear here.
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <br>
+
+                    <a
+                        href="announcements.html"
+                        class="btn btn-secondary"
+                    >
+                        View Announcements
+                    </a>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ==============================
+         STUDENT AUTH + APP SHELL
+    =============================== -->
+
+    <script type="module">
+
+        import { requireRole } from "../js/auth.js";
+        import { initializeAppShell } from "../components/app-shell.js";
+
+        if (requireRole("student")) {
+            initializeAppShell();
+        }
+
+    </script>
+
+</body>
+</html>
