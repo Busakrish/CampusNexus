@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>My Profile | CampusNexus</title>
+
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/forms.css">
+    <link rel="stylesheet" href="../css/responsive.css">
+</head>
+
+<body>
+
+    <div data-navbar></div>
+
+    <aside data-sidebar></aside>
+
+    <main class="main-content">
+
+        <!-- PAGE HEADER -->
+
+        <section class="dashboard-section">
+            <h1>My Profile</h1>
+            <p>
+                View and manage your student profile information.
+            </p>
+        </section>
+
+
+        <!-- PROFILE INFORMATION -->
+
+        <section class="card">
+
+            <div class="form-section">
+
+                <h2>Personal Information</h2>
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+                        <label for="first-name">
+                            First Name
+                        </label>
+
+                        <input type="text" id="first-name" name="firstName" placeholder="First name">
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="last-name">
+                            Last Name
+                        </label>
+
+                        <input type="text" id="last-name" name="lastName" placeholder="Last name">
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="email">
+                            Email
+                        </label>
+
+                        <input type="email" id="email" name="email" placeholder="Email address">
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="phone">
+                            Phone Number
+                        </label>
+
+                        <input type="tel" id="phone" name="phone" placeholder="Phone number">
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="student-id">
+                            Student ID
+                        </label>
+
+                        <input type="text" id="student-id" name="studentId" placeholder="Student ID" readonly>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="department">
+                            Department
+                        </label>
+
+                        <input type="text" id="department" name="department" placeholder="Department">
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="semester">
+                            Semester
+                        </label>
+
+                        <select id="semester" name="semester">
+
+                            <option value="">
+                                Select semester
+                            </option>
+
+                            <option value="1">Semester 1</option>
+                            <option value="2">Semester 2</option>
+                            <option value="3">Semester 3</option>
+                            <option value="4">Semester 4</option>
+                            <option value="5">Semester 5</option>
+                            <option value="6">Semester 6</option>
+                            <option value="7">Semester 7</option>
+                            <option value="8">Semester 8</option>
+
+                        </select>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="course">
+                            Course / Program
+                        </label>
+
+                        <input type="text" id="course" name="course" placeholder="Course or program">
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ADDRESS -->
+
+        <section class="card">
+
+            <div class="form-section">
+
+                <h2>Contact Information</h2>
+
+                <div class="form-grid">
+
+                    <div class="form-group form-group-full">
+                        <label for="address">
+                            Address
+                        </label>
+
+                        <textarea id="address" name="address" rows="3" placeholder="Enter your address"></textarea>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="city">
+                            City
+                        </label>
+
+                        <input type="text" id="city" name="city" placeholder="City">
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="state">
+                            State
+                        </label>
+
+                        <input type="text" id="state" name="state" placeholder="State">
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- PROFILE STATUS -->
+
+        <section class="card">
+
+            <div class="form-section">
+
+                <h2>Account Information</h2>
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+
+                        <label>
+                            Account Status
+                        </label>
+
+                        <div>
+                            <span class="status status-success">
+                                Active
+                            </span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Role
+                        </label>
+
+                        <input type="text" id="user-role" value="Student" readonly>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ACTIONS -->
+
+        <section class="dashboard-section">
+
+            <button type="button" class="btn btn-primary" id="save-profile">
+                Save Changes
+            </button>
+
+            <button type="button" class="btn btn-secondary" id="cancel-profile">
+                Cancel
+            </button>
+
+        </section>
+
+
+        <!-- LOADING STATE -->
+
+        <div id="profile-loading" class="card" hidden>
+            Loading profile...
+        </div>
+
+
+        <!-- EMPTY STATE -->
+
+        <div id="profile-empty" class="card" hidden>
+            No profile information is available.
+        </div>
+
+
+        <!-- ERROR STATE -->
+
+        <div id="profile-error" class="card" hidden>
+            Unable to load your profile. Please try again.
+        </div>
+
+    </main>
+
+
+    <!-- COMMON APP SHELL -->
+
+    <script type="module">
+
+        import { requireRole } from "../js/auth.js";
+        import { initializeAppShell } from "../components/app-shell.js";
+
+        if (requireRole("student")) {
+            initializeAppShell();
+        }
+
+    </script>
+
+</body>
+
+</html>
