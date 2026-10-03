@@ -1,0 +1,28 @@
+{
+  "name": "campusnexus",
+  "version": "1.0.0",
+  "description": "CampusNexus is a centralized student and campus organization management platform that connects memberships, events, tickets, announcements, merchandise, fundraisers, tasks, and finances in one system. It reduces manual work, improves collaboration, and provides real-time visibility into student organization activities. Designed for modern campuses.",
+  "homepage": "https://github.com/Busakrish/CampusNexus#readme",
+  "bugs": {
+    "url": "https://github.com/Busakrish/CampusNexus/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Busakrish/CampusNexus.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "script.js",
+  "scripts": {
+    "start": "node script.js",
+    "dev": "node --watch script.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "mongoose": "^9.10.4"
+  }
+}
