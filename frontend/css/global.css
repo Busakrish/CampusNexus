@@ -1,0 +1,322 @@
+/* ==========================================
+   SIDEBAR
+   ========================================== */
+
+[data-sidebar] {
+    position: fixed;
+
+    top: 0;
+    left: 0;
+    bottom: 0;
+
+    width: var(--sidebar-width);
+
+    background: var(--surface);
+
+    border-right: 1px solid var(--border);
+
+    z-index: 1000;
+
+    overflow-y: auto;
+}
+
+
+.sidebar-navigation {
+    display: flex;
+
+    flex-direction: column;
+
+    padding: 80px 12px 20px;
+}
+
+
+.sidebar-link {
+    display: flex;
+
+    align-items: center;
+
+    min-height: 40px;
+
+    padding: 9px 12px;
+
+    margin-bottom: 3px;
+
+    border-radius: var(--radius-sm);
+
+    color: var(--text-secondary);
+
+    font-size: var(--font-size-sm);
+
+    font-weight: 500;
+
+    transition:
+        background 0.2s,
+        color 0.2s;
+}
+
+
+.sidebar-link:hover {
+    background: var(--primary-light);
+
+    color: var(--primary);
+}
+
+
+/* ==========================================
+   TOP NAVBAR
+   ========================================== */
+
+[data-navbar] {
+    position: fixed;
+
+    top: 0;
+    left: var(--sidebar-width);
+    right: 0;
+
+    height: var(--navbar-height);
+
+    background: var(--surface);
+
+    border-bottom: 1px solid var(--border);
+
+    z-index: 900;
+}
+
+
+.top-navbar {
+    height: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 0 20px;
+}
+
+
+.navbar-left,
+.navbar-right {
+    display: flex;
+
+    align-items: center;
+
+    gap: 16px;
+}
+
+
+.page-heading h1 {
+    font-size: 18px;
+
+    font-weight: 650;
+}
+
+
+.sidebar-toggle {
+    display: none;
+
+    border: 0;
+
+    background: transparent;
+
+    font-size: 20px;
+}
+
+
+.notification-button {
+    position: relative;
+
+    width: 36px;
+    height: 36px;
+
+    border: 0;
+
+    background: transparent;
+
+    border-radius: 50%;
+}
+
+
+.notification-button:hover {
+    background: var(--surface-soft);
+}
+
+
+.notification-icon {
+    font-size: 16px;
+}
+
+
+.notification-badge {
+    position: absolute;
+
+    top: 2px;
+    right: 2px;
+
+    min-width: 16px;
+    height: 16px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 0 4px;
+
+    border-radius: 20px;
+
+    background: var(--danger);
+
+    color: white;
+
+    font-size: 9px;
+
+    font-weight: 700;
+}
+
+
+.navbar-user {
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+}
+
+
+.navbar-user-info {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: flex-end;
+}
+
+
+.navbar-user-name {
+    font-size: var(--font-size-sm);
+
+    font-weight: 600;
+}
+
+
+.navbar-user-role {
+    color: var(--text-muted);
+
+    font-size: var(--font-size-xs);
+
+    text-transform: capitalize;
+}
+
+
+.navbar-user-avatar {
+    width: 34px;
+    height: 34px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: var(--primary-light);
+
+    color: var(--primary);
+
+    font-size: var(--font-size-xs);
+
+    font-weight: 700;
+}
+
+
+.logout-button {
+    padding: 7px 12px;
+
+    border: 1px solid var(--border);
+
+    border-radius: var(--radius-sm);
+
+    background: white;
+
+    color: var(--text-secondary);
+
+    font-size: var(--font-size-xs);
+
+    font-weight: 600;
+}
+
+
+.logout-button:hover {
+    background: var(--danger-bg);
+
+    color: var(--danger);
+
+    border-color: var(--danger-bg);
+}
+
+
+/* ==========================================
+   SIDEBAR COLLAPSE
+   ========================================== */
+
+body.sidebar-collapsed [data-sidebar] {
+    transform: translateX(-100%);
+}
+
+
+body.sidebar-collapsed [data-navbar] {
+    left: 0;
+}
+
+
+body.sidebar-collapsed .main-content {
+    margin-left: 0;
+}
+
+
+/* ==========================================
+   MOBILE
+   ========================================== */
+
+@media (max-width: 768px) {
+
+    [data-sidebar] {
+        transform: translateX(-100%);
+
+        transition: transform 0.2s ease;
+    }
+
+
+    [data-navbar] {
+        left: 0;
+    }
+
+
+    body:not(.sidebar-collapsed) [data-sidebar] {
+        transform: translateX(0);
+    }
+
+
+    .main-content {
+        margin-left: 0;
+    }
+
+
+    .sidebar-toggle {
+        display: block;
+    }
+
+
+    .navbar-user-info {
+        display: none;
+    }
+
+
+    .logout-button {
+        display: none;
+    }
+}
