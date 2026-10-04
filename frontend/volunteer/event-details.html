@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Operations — CampusNexus Volunteer</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/volunteer/events.html" class="btn btn-secondary btn-sm">← Back to Events</a>
+        </div>
+
+        <div id="event-details-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('VOLUNTEER', 'ADMIN');
+
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get('id');
+
+    async function loadEvent() {
+      const container = document.getElementById('event-details-container');
+      if (!eventId) {
+        utils.renderError(container, 'No event specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading event details...');
+
+      try {
+        const res = await api.get(`/events/${eventId}`);
+        if (!res.success || !res.data.event) throw new Error(res.message);
+
+        const { event, organization } = res.data;
+
+        // Load volunteer tasks for this event
+        const taskRes = await api.get('/tasks', { eventId: event.eventId });
+        const tasks = taskRes.data ? taskRes.data.tasks : [];
+
+        container.innerHTML = `
+          <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-header">
+              <div>
+                <span class="badge badge-info" style="margin-bottom: 0.5rem;">${event.category}</span>
+                <h1 style="font-size: 1.75rem;">${event.eventName}</h1>
+              </div>
+              <a href="/volunteer/qr-scanner.html" class="btn btn-primary">Open QR Gate Scanner 📷</a>
+            </div>
+
+            <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">${event.description}</p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Dates & Times</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">📅 ${utils.formatDate(event.startDate)} (${event.startTime} - ${event.endTime})</div>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Venue Location</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">📍 ${event.venue} ${event.room ? `(${event.room})` : ''}</div>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Host Organization</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">🏛️ ${organization ? organization.name : 'Club'}</div>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Registered Attendees</span>
+                <div style="font-weight: 700; margin-top: 0.2rem; color: var(--accent-cyan);">${event.registrationCount} / ${event.maximumCapacity}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">My Volunteer Duties for this Event</h3>
+            </div>
+            ${tasks && tasks.length > 0 ? `
+              <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                ${tasks.map(t => `
+                  <div style="padding: 1rem; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <strong>${t.title}</strong>
+                      <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">${t.description}</div>
+                    </div>
+                    ${utils.renderBadge(t.status)}
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <p style="color: var(--text-muted); font-size: 0.9rem;">No specific sub-tasks assigned to you for this event yet.</p>
+            `}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadEvent);
+      }
+    }
+
+    loadEvent();
+  </script>
+</body>
+</html>

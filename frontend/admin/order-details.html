@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Audit — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/admin/orders.html" class="btn btn-secondary btn-sm">← Back to Orders</a>
+        </div>
+
+        <div id="order-details-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN', 'ORGANIZER');
+
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('id');
+
+    async function loadOrder() {
+      const container = document.getElementById('order-details-container');
+      if (!orderId) {
+        utils.renderError(container, 'No order ID specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading order details...');
+
+      try {
+        const res = await api.get(`/orders/${orderId}`);
+        if (!res.success || !res.data.order) throw new Error(res.message);
+
+        const { order, payment } = res.data;
+
+        container.innerHTML = `
+          <div class="card" style="max-width: 860px;">
+            <div class="card-header">
+              <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">ORDER #${order.orderId}</span>
+                <h1 style="font-size: 1.6rem; margin-top: 0.25rem;">Order Fulfillment Record</h1>
+              </div>
+              ${utils.renderBadge(order.status)}
+            </div>
+
+            <div class="table-responsive" style="margin-bottom: 1.5rem;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Options</th>
+                    <th>Qty</th>
+                    <th>Historical Unit Price</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${order.items.map(i => `
+                    <tr>
+                      <td><strong>${i.name}</strong></td>
+                      <td>${i.variant} / ${i.size}</td>
+                      <td>${i.quantity}</td>
+                      <td>${utils.formatCurrency(i.unitPrice)}</td>
+                      <td><strong>${utils.formatCurrency(i.subtotal)}</strong></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; font-size: 1.1rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem; margin-bottom: 1.5rem;">
+              <div>Customer: <code>${order.userId}</code></div>
+              <div>Total Paid: <strong style="color: var(--primary);">${utils.formatCurrency(order.totalAmount)}</strong></div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+              <button class="btn btn-secondary btn-sm" onclick="changeStatus('Preparing')">Mark Preparing</button>
+              <button class="btn btn-primary btn-sm" onclick="changeStatus('Ready')">Mark Ready for Pickup</button>
+              <button class="btn btn-success btn-sm" onclick="changeStatus('Delivered/Picked Up')">Mark Delivered ✓</button>
+              <button class="btn btn-danger btn-sm" onclick="changeStatus('Cancelled')">Cancel & Restock</button>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadOrder);
+      }
+    }
+
+    async function changeStatus(status) {
+      try {
+        await api.put(`/orders/${orderId}/status`, { status });
+        utils.toast(`Order marked as ${status}`, 'success');
+        loadOrder();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadOrder();
+  </script>
+</body>
+</html>

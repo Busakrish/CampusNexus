@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assign Volunteer Task — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/admin/tasks.html" class="btn btn-secondary btn-sm">← Back to Tasks</a>
+        </div>
+
+        <div class="card" style="max-width: 760px;">
+          <h1 class="page-title" style="font-size: 1.6rem; margin-bottom: 1.5rem;">Assign New Volunteer Task</h1>
+
+          <form id="task-form">
+            <div class="form-group">
+              <label class="form-label" for="title">Task Title *</label>
+              <input type="text" id="title" class="form-control" placeholder="e.g. Stage AV setup and lighting configuration" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="description">Task Instructions & Scope</label>
+              <textarea id="description" class="form-control" placeholder="Provide step-by-step duties and contacts..."></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="assignedVolunteerId">Assign to Volunteer *</label>
+                <select id="assignedVolunteerId" class="form-control" required></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="organizationId">Organization *</label>
+                <select id="organizationId" class="form-control" required></select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="spendingLimit">Authorized Spending Limit ($)</label>
+                <input type="number" id="spendingLimit" class="form-control" min="0" value="0" step="any" placeholder="0.00">
+                <div class="form-help">Task limit is only a budget ceiling; actual spending becomes an Expense.</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="dueDate">Due Date</label>
+                <input type="date" id="dueDate" class="form-control">
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+              <a href="/admin/tasks.html" class="btn btn-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary" id="submit-btn">Assign Task Duty</button>
+            </div>
+          </form>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN', 'ORGANIZER');
+
+    async function loadDropdowns() {
+      try {
+        const [volRes, orgRes] = await Promise.all([
+          api.get('/users/volunteers'),
+          api.get('/organizations')
+        ]);
+
+        if (volRes.success && volRes.data.volunteers) {
+          const select = document.getElementById('assignedVolunteerId');
+          select.innerHTML = volRes.data.volunteers.map(v => `<option value="${v.userId}">${v.name} (${v.email})</option>`).join('');
+        }
+
+        if (orgRes.success && orgRes.data.organizations) {
+          const select = document.getElementById('organizationId');
+          select.innerHTML = orgRes.data.organizations.map(o => `<option value="${o.organizationId}">${o.name}</option>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('task-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+
+      const payload = {
+        title: document.getElementById('title').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        assignedVolunteerId: document.getElementById('assignedVolunteerId').value,
+        organizationId: document.getElementById('organizationId').value,
+        spendingLimit: Number(document.getElementById('spendingLimit').value) || 0,
+        dueDate: document.getElementById('dueDate').value || null
+      };
+
+      try {
+        await api.post('/tasks', payload);
+        utils.toast('Task assigned successfully!', 'success');
+        setTimeout(() => window.location.href = '/admin/tasks.html', 500);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+        btn.disabled = false;
+      }
+    });
+
+    loadDropdowns();
+  </script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Details — CampusNexus Store</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/student/merchandise.html" class="btn btn-secondary btn-sm">← Back to Store</a>
+        </div>
+
+        <div id="product-details-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get('id');
+
+    async function loadProductDetails() {
+      const container = document.getElementById('product-details-container');
+      if (!productId) {
+        utils.renderError(container, 'No product ID specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading product details...');
+
+      try {
+        const res = await api.get(`/products/${productId}`);
+        if (!res.success || !res.data.product) throw new Error(res.message);
+
+        const { product, organization } = res.data;
+
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            
+            <!-- Left: Product Image -->
+            <div class="card" style="padding: 1rem;">
+              <img src="${(product.images && product.images[0]) || 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80'}" alt="${product.name}" style="width: 100%; border-radius: var(--radius-md); object-fit: cover; max-height: 440px;">
+            </div>
+
+            <!-- Right: Options & Checkout -->
+            <div class="card">
+              <span style="color: var(--accent-cyan); font-weight: 700; font-size: 0.85rem; text-transform: uppercase;">
+                ${organization ? organization.name : 'Campus Store'}
+              </span>
+              <h1 style="font-size: 1.85rem; margin: 0.25rem 0 0.75rem;">${product.name}</h1>
+              <div style="font-size: 1.6rem; font-weight: 800; color: var(--primary); margin-bottom: 1.25rem;">
+                ${utils.formatCurrency(product.price)}
+              </div>
+
+              <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                ${product.description}
+              </p>
+
+              <form id="order-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Select Color / Variant</label>
+                    <select id="variant-select" class="form-control">
+                      ${product.variants.map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Select Size</label>
+                    <select id="size-select" class="form-control">
+                      ${product.sizes.map(s => `<option value="${s}">${s}</option>`).join('')}
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" id="qty-input" class="form-control" value="1" min="1" max="${product.stock}" ${product.stock <= 0 ? 'disabled' : ''}>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Pickup Location</label>
+                    <select id="location-select" class="form-control">
+                      <option value="Campus Store Main Hub">Campus Store Main Hub</option>
+                      <option value="Student Union Desk">Student Union Desk</option>
+                      <option value="Hostel Common Room">Hostel Common Room Delivery</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="background: var(--bg-surface-elevated); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">INVENTORY STATUS</span>
+                    <strong style="color: ${product.stock > 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)'}; font-size: 0.95rem;">
+                      ${product.stock > 0 ? `✓ ${product.stock} units in stock` : '✕ Currently Out of Stock'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">ESTIMATED TOTAL</span>
+                    <strong id="order-total-preview" style="font-size: 1.3rem; color: var(--text-primary);">${utils.formatCurrency(product.price)}</strong>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;" id="order-btn" ${product.stock <= 0 ? 'disabled' : ''}>
+                  ${product.stock > 0 ? 'Confirm Order & Pay Now →' : 'Out of Stock'}
+                </button>
+              </form>
+            </div>
+
+          </div>
+        `;
+
+        const qtyInput = document.getElementById('qty-input');
+        if (qtyInput) {
+          qtyInput.oninput = () => {
+            const q = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+            document.getElementById('order-total-preview').textContent = utils.formatCurrency(product.price * q);
+          };
+        }
+
+        document.getElementById('order-form').onsubmit = async (e) => {
+          e.preventDefault();
+          const qty = parseInt(document.getElementById('qty-input').value, 10) || 1;
+          const variant = document.getElementById('variant-select').value;
+          const size = document.getElementById('size-select').value;
+          const loc = document.getElementById('location-select').value;
+          const total = product.price * qty;
+
+          const confirmed = await utils.confirmDialog(
+            'Confirm Purchase',
+            `Place order for ${qty}x ${product.name} (${variant}, ${size}) for total ${utils.formatCurrency(total)}?`,
+            'Confirm & Pay Now'
+          );
+          if (!confirmed) return;
+
+          const btn = document.getElementById('order-btn');
+          btn.disabled = true;
+          btn.textContent = 'Processing Order & Payment...';
+
+          try {
+            const payload = {
+              items: [
+                {
+                  productId: product.productId,
+                  quantity: qty,
+                  variant,
+                  size
+                }
+              ],
+              shippingAddress: {
+                campusLocation: loc
+              },
+              paymentMethod: 'SIMULATED'
+            };
+
+            const res = await api.post('/orders', payload);
+            if (!res.success) throw new Error(res.message);
+
+            utils.toast('Order placed and payment verified successfully!', 'success');
+            setTimeout(() => {
+              window.location.href = `/student/order-details.html?id=${res.data.order.orderId}`;
+            }, 600);
+          } catch (err) {
+            utils.toast(err.message, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Confirm Order & Pay Now →';
+          }
+        };
+
+      } catch (err) {
+        utils.renderError(container, err.message, loadProductDetails);
+      }
+    }
+
+    loadProductDetails();
+  </script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Reports — CampusNexus Treasurer</title>
+  <meta name="description" content="Comprehensive financial reports: income vs expenses, fundraiser collections, budget utilization, and transaction summaries.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Financial Reports</h1>
+            <p class="page-subtitle">Comprehensive financial overview: income, expenses, fundraiser performance, and budget utilization.</p>
+          </div>
+          <button class="btn btn-secondary" onclick="loadAllReports()">🔄 Refresh</button>
+        </div>
+
+        <!-- Top-Level Financial KPIs -->
+        <div class="metrics-grid" style="margin-bottom: 2rem;">
+          <div class="metric-card accent-emerald">
+            <div class="metric-info">
+              <span class="metric-label">Total Income</span>
+              <span class="metric-value" id="stat-income">...</span>
+            </div>
+            <div class="metric-icon-box">📈</div>
+          </div>
+          <div class="metric-card accent-rose">
+            <div class="metric-info">
+              <span class="metric-label">Total Expenses</span>
+              <span class="metric-value" id="stat-expenses">...</span>
+            </div>
+            <div class="metric-icon-box">📉</div>
+          </div>
+          <div class="metric-card accent-cyan">
+            <div class="metric-info">
+              <span class="metric-label">Net Balance</span>
+              <span class="metric-value" id="stat-net">...</span>
+            </div>
+            <div class="metric-icon-box">💳</div>
+          </div>
+          <div class="metric-card accent-purple">
+            <div class="metric-info">
+              <span class="metric-label">Fundraiser Collections</span>
+              <span class="metric-value" id="stat-fundraiser">...</span>
+            </div>
+            <div class="metric-icon-box">💰</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+
+          <!-- Income Breakdown -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Income by Source</h2>
+            </div>
+            <div id="income-breakdown-container"></div>
+          </div>
+
+          <!-- Expense Category Breakdown -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Expenses by Category</h2>
+            </div>
+            <div id="expense-breakdown-container"></div>
+          </div>
+
+          <!-- Fundraiser Performance -->
+          <div class="card dashboard-full">
+            <div class="card-header">
+              <h2 class="card-title">Fundraiser Performance</h2>
+            </div>
+            <div id="fundraiser-report-container"></div>
+          </div>
+
+          <!-- Recent Transactions -->
+          <div class="card dashboard-full">
+            <div class="card-header">
+              <h2 class="card-title">Transaction History</h2>
+              <a href="/treasurer/transactions.html" class="btn btn-secondary btn-sm">Full Ledger →</a>
+            </div>
+            <div id="transactions-container"></div>
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+
+    function renderCategoryBar(label, amount, maxAmount, color) {
+      const pct = maxAmount > 0 ? Math.min(100, (amount / maxAmount) * 100).toFixed(0) : 0;
+      return `
+        <div style="margin-bottom: 0.85rem;">
+          <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.3rem;">
+            <span style="color:var(--text-secondary);">${label}</span>
+            <strong>${utils.formatCurrency(amount)}</strong>
+          </div>
+          <div style="height:6px; background:var(--bg-surface-elevated); border-radius:3px; overflow:hidden;">
+            <div style="height:100%; width:${pct}%; background:${color}; border-radius:3px; transition:width 0.5s;"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadAllReports() {
+      try {
+        // Load transactions for totals
+        const txRes = await api.get('/transactions');
+        const transactions = txRes.success ? (txRes.data.transactions || []) : [];
+
+        const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
+        const expenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
+        const net = income - expenses;
+
+        document.getElementById('stat-income').textContent = utils.formatCurrency(income);
+        document.getElementById('stat-expenses').textContent = utils.formatCurrency(expenses);
+        document.getElementById('stat-net').textContent = utils.formatCurrency(net);
+        document.getElementById('stat-net').style.color = net >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)';
+
+        // Income Breakdown by category
+        const incomeByCategory = {};
+        transactions.filter(t => t.type === 'income').forEach(t => {
+          const cat = t.category || 'Other';
+          incomeByCategory[cat] = (incomeByCategory[cat] || 0) + (t.amount || 0);
+        });
+        const incomeColors = ['var(--accent-emerald)', 'var(--accent-cyan)', 'var(--primary)', 'var(--accent-purple)'];
+        const incomeContainer = document.getElementById('income-breakdown-container');
+        if (Object.keys(incomeByCategory).length === 0) {
+          utils.renderEmpty(incomeContainer, 'No income records', 'Record income transactions to see breakdown.');
+        } else {
+          const maxIncome = Math.max(...Object.values(incomeByCategory));
+          incomeContainer.innerHTML = Object.entries(incomeByCategory)
+            .sort(([,a],[,b]) => b - a)
+            .map(([cat, amt], i) => renderCategoryBar(cat, amt, maxIncome, incomeColors[i % incomeColors.length]))
+            .join('');
+        }
+
+        // Expense Breakdown by category
+        const expByCategory = {};
+        transactions.filter(t => t.type === 'expense').forEach(t => {
+          const cat = t.category || 'Other';
+          expByCategory[cat] = (expByCategory[cat] || 0) + (t.amount || 0);
+        });
+        const expContainer = document.getElementById('expense-breakdown-container');
+        if (Object.keys(expByCategory).length === 0) {
+          utils.renderEmpty(expContainer, 'No expense records', 'Approved expenses will appear here.');
+        } else {
+          const maxExp = Math.max(...Object.values(expByCategory));
+          expContainer.innerHTML = Object.entries(expByCategory)
+            .sort(([,a],[,b]) => b - a)
+            .map(([cat, amt], i) => renderCategoryBar(cat, amt, maxExp, 'var(--accent-rose)'))
+            .join('');
+        }
+
+        // Fundraisers
+        const frRes = await api.get('/fundraisers');
+        const fundraisers = frRes.success ? (frRes.data.fundraisers || []) : [];
+        const totalFundraised = fundraisers.reduce((s, f) => s + (f.collectedAmount || 0), 0);
+        document.getElementById('stat-fundraiser').textContent = utils.formatCurrency(totalFundraised);
+
+        const frContainer = document.getElementById('fundraiser-report-container');
+        if (fundraisers.length === 0) {
+          utils.renderEmpty(frContainer, 'No fundraisers', 'Fundraiser data will show here.');
+        } else {
+          frContainer.innerHTML = `
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Fundraiser</th>
+                    <th>Target</th>
+                    <th>Collected</th>
+                    <th>Progress</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${fundraisers.map(f => {
+                    const target = f.targetAmount || 1;
+                    const collected = f.collectedAmount || 0;
+                    const pct = Math.min(100, (collected / target) * 100).toFixed(0);
+                    return `
+                      <tr>
+                        <td><strong>${f.title}</strong></td>
+                        <td>${utils.formatCurrency(target)}</td>
+                        <td><strong style="color:var(--accent-emerald);">${utils.formatCurrency(collected)}</strong></td>
+                        <td style="min-width:150px;">
+                          <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <div style="flex:1; height:6px; background:var(--bg-surface-elevated); border-radius:3px;">
+                              <div style="height:100%; width:${pct}%; background:var(--accent-emerald); border-radius:3px;"></div>
+                            </div>
+                            <span style="font-size:0.8rem;">${pct}%</span>
+                          </div>
+                        </td>
+                        <td>${utils.renderBadge(f.status)}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        // Recent Transactions
+        const txContainer = document.getElementById('transactions-container');
+        const recent = transactions.slice(0, 10);
+        if (recent.length === 0) {
+          utils.renderEmpty(txContainer, 'No transactions', 'Record income and expense transactions to see them here.');
+        } else {
+          txContainer.innerHTML = `
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Transaction ID</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recent.map(t => `
+                    <tr>
+                      <td><strong style="font-family:monospace;">#${t.transactionId}</strong></td>
+                      <td>${t.type === 'income' ? '<span style="color:var(--accent-emerald);">↑ Income</span>' : '<span style="color:var(--accent-rose);">↓ Expense</span>'}</td>
+                      <td>${t.category || '—'}</td>
+                      <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.description || '—'}</td>
+                      <td><strong style="color:${t.type === 'income' ? 'var(--accent-emerald)' : 'var(--accent-rose)'};">${t.type === 'income' ? '+' : '−'}${utils.formatCurrency(t.amount)}</strong></td>
+                      <td>${utils.formatDate(t.createdAt)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadAllReports();
+  </script>
+</body>
+</html>

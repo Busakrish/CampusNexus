@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fundraiser Campaigns — CampusNexus Volunteer</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Fundraising Campaigns & Drives</h1>
+            <p class="page-subtitle">Track campaign targets and record community donation collections.</p>
+          </div>
+        </div>
+
+        <div id="fundraisers-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('VOLUNTEER', 'ADMIN');
+
+    async function loadFundraisers() {
+      const container = document.getElementById('fundraisers-container');
+      utils.renderLoading(container, 'Loading fundraiser campaigns...');
+
+      try {
+        const res = await api.get('/fundraisers');
+        if (!res.success || !res.data.fundraisers || res.data.fundraisers.length === 0) {
+          utils.renderEmpty(container, 'No active fundraisers');
+          return;
+        }
+
+        const fundraisers = res.data.fundraisers;
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem;">
+            ${fundraisers.map(f => `
+              <div class="card card-hover" style="display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                  <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700; text-transform: uppercase;">
+                    ${f.organization ? f.organization.name : 'Campaign'}
+                  </span>
+                  ${utils.renderBadge(f.status)}
+                </div>
+
+                <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">${f.name}</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; margin-bottom: 1.25rem; flex: 1;">
+                  ${f.purpose}
+                </p>
+
+                <div style="margin-bottom: 1.25rem;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.35rem;">
+                    <span>Collected: <strong>${utils.formatCurrency(f.collectedAmount)}</strong></span>
+                    <span style="color: var(--text-muted);">Target: ${utils.formatCurrency(f.targetAmount)}</span>
+                  </div>
+                  <div style="width: 100%; height: 8px; background: var(--bg-surface-elevated); border-radius: 4px; overflow: hidden;">
+                    <div style="width: ${f.progressPercentage}%; height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald));"></div>
+                  </div>
+                </div>
+
+                <a href="/volunteer/fundraiser-details.html?id=${f.fundraiserId}" class="btn btn-primary btn-sm" style="width: 100%;">
+                  Log Collection & View →
+                </a>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadFundraisers);
+      }
+    }
+
+    loadFundraisers();
+  </script>
+</body>
+</html>

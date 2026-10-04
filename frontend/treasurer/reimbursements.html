@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reimbursements — CampusNexus Treasurer</title>
+  <meta name="description" content="Review, approve, or reject volunteer expense reimbursement requests. Track disbursements and payment status.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Reimbursement Requests</h1>
+            <p class="page-subtitle">Review and process volunteer expense reimbursement claims. Approve or reject with remarks.</p>
+          </div>
+        </div>
+
+        <!-- Summary Metrics -->
+        <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+          <div class="metric-card accent-amber">
+            <div class="metric-info">
+              <span class="metric-label">Pending Review</span>
+              <span class="metric-value" id="stat-pending">...</span>
+            </div>
+            <div class="metric-icon-box">⏳</div>
+          </div>
+          <div class="metric-card accent-emerald">
+            <div class="metric-info">
+              <span class="metric-label">Approved This Month</span>
+              <span class="metric-value" id="stat-approved">...</span>
+            </div>
+            <div class="metric-icon-box">✓</div>
+          </div>
+          <div class="metric-card accent-cyan">
+            <div class="metric-info">
+              <span class="metric-label">Total Disbursed</span>
+              <span class="metric-value" id="stat-disbursed">...</span>
+            </div>
+            <div class="metric-icon-box">💸</div>
+          </div>
+          <div class="metric-card accent-rose">
+            <div class="metric-info">
+              <span class="metric-label">Rejected</span>
+              <span class="metric-value" id="stat-rejected">...</span>
+            </div>
+            <div class="metric-icon-box">✕</div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+            <select class="form-control" id="filter-status" style="width: auto; min-width: 150px;">
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="disbursed">Disbursed</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadReimbursements()">Apply Filter</button>
+          </div>
+        </div>
+
+        <div id="reimbursements-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Review Modal -->
+  <div class="modal-overlay" id="review-modal">
+    <div class="modal-content">
+      <div class="card-header" style="margin-bottom: 1.5rem;">
+        <h2 class="card-title" id="modal-title">Review Reimbursement</h2>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('review-modal').classList.remove('active')">✕</button>
+      </div>
+      <div id="modal-expense-detail" style="margin-bottom: 1.25rem;"></div>
+      <div class="form-group">
+        <label class="form-label">Treasurer Remarks</label>
+        <textarea class="form-control" id="review-remarks" rows="3" placeholder="Reason for approval or rejection (optional)..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="document.getElementById('review-modal').classList.remove('active')">Cancel</button>
+        <button class="btn btn-danger" id="reject-btn" onclick="submitDecision('rejected')">Reject</button>
+        <button class="btn btn-success" id="approve-btn" onclick="submitDecision('approved')">Approve & Disburse</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+
+    let currentExpenseId = null;
+
+    async function loadReimbursements() {
+      const container = document.getElementById('reimbursements-container');
+      utils.renderLoading(container);
+      try {
+        const status = document.getElementById('filter-status').value;
+        const params = {};
+        if (status) params.status = status;
+        const res = await api.get('/expenses', params);
+        if (!res.success) throw new Error(res.message);
+        const expenses = res.data.expenses || [];
+
+        // Update metrics
+        const pending = expenses.filter(e => ['pending', 'submitted'].includes((e.status || '').toLowerCase())).length;
+        const approved = expenses.filter(e => (e.status || '').toLowerCase() === 'approved').length;
+        const rejected = expenses.filter(e => (e.status || '').toLowerCase() === 'rejected').length;
+        const disbursed = expenses.filter(e => ['reimbursed', 'disbursed'].includes((e.status || '').toLowerCase())).reduce((s, e) => s + (e.amount || 0), 0);
+        document.getElementById('stat-pending').textContent = pending;
+        document.getElementById('stat-approved').textContent = approved;
+        document.getElementById('stat-disbursed').textContent = utils.formatCurrency(disbursed);
+        document.getElementById('stat-rejected').textContent = rejected;
+
+        if (expenses.length === 0) {
+          utils.renderEmpty(container, 'No reimbursement requests', 'Volunteer expense claims will appear here for review.');
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Expense ID</th>
+                    <th>Volunteer</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Submitted On</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${expenses.map(e => {
+                    const st = (e.status || '').toLowerCase();
+                    const volunteerName = (e.submitter && e.submitter.name) || (e.user && e.user.name) || e.submittedBy || '—';
+                    return `
+                    <tr>
+                      <td><strong style="font-family:monospace;">#${e.expenseId}</strong></td>
+                      <td>${volunteerName}</td>
+                      <td>${e.category || '—'}</td>
+                      <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${e.description}</td>
+                      <td><strong>${utils.formatCurrency(e.amount)}</strong></td>
+                      <td>${utils.formatDate(e.createdAt)}</td>
+                      <td>${utils.renderBadge(e.status)}</td>
+                      <td>
+                        ${(st === 'pending' || st === 'submitted') ? `
+                          <button class="btn btn-primary btn-sm" onclick="openReview('${e.expenseId}', '${(e.description || '').replace(/'/g,"\\'")}', ${e.amount}, '${e.category}', '${volunteerName.replace(/'/g,"\\'")}')">Review</button>
+                        ` : ''}
+                        ${st === 'approved' ? `<button class="btn btn-success btn-sm" onclick="disburse('${e.expenseId}')">Disburse 💸</button>` : ''}
+                      </td>
+                    </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message);
+      }
+    }
+
+    function openReview(expenseId, description, amount, category, volunteerName) {
+      currentExpenseId = expenseId;
+      document.getElementById('modal-expense-detail').innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:0.65rem; background:var(--bg-surface-elevated); padding:1rem; border-radius:var(--radius-md);">
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Volunteer</span><strong>${volunteerName}</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Category</span><strong>${category}</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-muted);">Amount Claimed</span><strong style="color:var(--accent-amber); font-size:1.1rem;">${utils.formatCurrency(amount)}</strong></div>
+          <div><span style="color:var(--text-muted);">Description</span><p style="margin-top:0.25rem;">${description}</p></div>
+        </div>
+      `;
+      document.getElementById('review-remarks').value = '';
+      document.getElementById('review-modal').classList.add('active');
+    }
+
+    async function submitDecision(status) {
+      if (!currentExpenseId) return;
+      const remarks = document.getElementById('review-remarks').value.trim();
+      const btn = status === 'approved' ? document.getElementById('approve-btn') : document.getElementById('reject-btn');
+      btn.disabled = true;
+      try {
+        const res = await api.put(`/expenses/${currentExpenseId}/review`, { status, remarks });
+        if (!res.success) throw new Error(res.message);
+        utils.toast(`Expense ${status}!`, status === 'approved' ? 'success' : 'info');
+        document.getElementById('review-modal').classList.remove('active');
+        loadReimbursements();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function disburse(expenseId) {
+      if (!confirm('Mark this reimbursement as disbursed?')) return;
+      try {
+        const res = await api.put(`/expenses/${expenseId}/review`, { status: 'reimbursed' });
+        if (res.success) { utils.toast('Reimbursement disbursed!', 'success'); loadReimbursements(); }
+        else throw new Error(res.message);
+      } catch (err) { utils.toast(err.message, 'error'); }
+    }
+
+    loadReimbursements();
+  </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Product — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/admin/merchandise.html" class="btn btn-secondary btn-sm">← Back to Merchandise</a>
+        </div>
+
+        <div class="card" style="max-width: 760px;">
+          <h1 class="page-title" style="font-size: 1.6rem; margin-bottom: 1.5rem;">Add Merchandise Catalog Item</h1>
+
+          <form id="product-form">
+            <div class="form-group">
+              <label class="form-label" for="organizationId">Organization *</label>
+              <select id="organizationId" class="form-control" required></select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="name">Product Name *</label>
+              <input type="text" id="name" class="form-control" placeholder="e.g. Society Embroidered Zip Hoodie" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="description">Product Description</label>
+              <textarea id="description" class="form-control" placeholder="Material specifications, branding, care instructions..."></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="price">Retail Price ($) *</label>
+                <input type="number" id="price" class="form-control" min="0" step="any" placeholder="40.00" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="stock">Initial Stock Inventory *</label>
+                <input type="number" id="stock" class="form-control" min="0" value="25" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="category">Category</label>
+                <select id="category" class="form-control">
+                  <option value="Apparel">Apparel</option>
+                  <option value="Accessories">Accessories</option>
+                  <option value="Stationery">Stationery</option>
+                  <option value="Memorabilia">Memorabilia</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="image">Image URL</label>
+                <input type="url" id="image" class="form-control" placeholder="https://images.unsplash.com/...">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="variants">Variants (comma-separated)</label>
+                <input type="text" id="variants" class="form-control" value="Black, Navy, Charcoal">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="sizes">Sizes (comma-separated)</label>
+                <input type="text" id="sizes" class="form-control" value="S, M, L, XL, XXL">
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+              <a href="/admin/merchandise.html" class="btn btn-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary" id="submit-btn">Save to Store Catalog</button>
+            </div>
+          </form>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN', 'ORGANIZER');
+
+    async function loadOrgs() {
+      try {
+        const res = await api.get('/organizations');
+        if (res.success && res.data.organizations) {
+          const select = document.getElementById('organizationId');
+          select.innerHTML = res.data.organizations.map(o => `<option value="${o.organizationId}">${o.name}</option>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('product-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+
+      const variants = document.getElementById('variants').value.split(',').map(s => s.trim()).filter(Boolean);
+      const sizes = document.getElementById('sizes').value.split(',').map(s => s.trim()).filter(Boolean);
+      const img = document.getElementById('image').value.trim();
+
+      const payload = {
+        organizationId: document.getElementById('organizationId').value,
+        name: document.getElementById('name').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        price: Number(document.getElementById('price').value),
+        stock: parseInt(document.getElementById('stock').value, 10),
+        category: document.getElementById('category').value,
+        images: img ? [img] : [],
+        variants: variants.length ? variants : ['Default'],
+        sizes: sizes.length ? sizes : ['Standard']
+      };
+
+      try {
+        await api.post('/products', payload);
+        utils.toast('Product added to catalog successfully!', 'success');
+        setTimeout(() => window.location.href = '/admin/merchandise.html', 500);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+        btn.disabled = false;
+      }
+    });
+
+    loadOrgs();
+  </script>
+</body>
+</html>

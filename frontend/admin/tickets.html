@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tickets Master Ledger — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Tickets Master Ledger</h1>
+            <p class="page-subtitle">Audit issued tickets, historical prices, QR code tokens, and check-in statuses.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="tickets-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    async function loadTickets() {
+      const container = document.getElementById('tickets-table-container');
+      utils.renderLoading(container, 'Loading tickets master ledger...');
+
+      try {
+        const res = await api.get('/tickets');
+        if (!res.success || !res.data.tickets || res.data.tickets.length === 0) {
+          utils.renderEmpty(container, 'No tickets found');
+          return;
+        }
+
+        const tickets = res.data.tickets;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Ticket ID</th>
+                  <th>Student Attendee</th>
+                  <th>Event</th>
+                  <th>Ticket Type</th>
+                  <th>Historical Price</th>
+                  <th>Payment</th>
+                  <th>Check-In Status</th>
+                  <th>Issued Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tickets.map(t => {
+                  const studentName = t.studentName || t.user?.name || (t.student && t.student.name) || 'Registered Student';
+                  const studentId = t.studentId || (t.student && t.student.studentNumber) || 'N/A';
+                  const studentEmail = t.studentEmail || t.user?.email || '';
+
+                  return `
+                    <tr>
+                      <td>
+                        <strong style="font-family: monospace; color: var(--primary); font-size: 0.95rem;">#${t.ticketId}</strong>
+                      </td>
+                      <td>
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                          <strong style="color: var(--text-primary); font-size: 0.95rem;">${studentName}</strong>
+                          <div style="display: flex; align-items: center; gap: 6px;">
+                            <code style="font-size: 0.78rem; background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px;">${studentId}</code>
+                            ${studentEmail ? `<span style="font-size: 0.75rem; color: var(--text-muted);">${studentEmail}</span>` : ''}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <strong>${t.event ? t.event.eventName : t.eventId}</strong>
+                      </td>
+                      <td>${t.ticketType}</td>
+                      <td><strong style="color: var(--text-primary);">${utils.formatCurrency(t.price)}</strong></td>
+                      <td>${utils.renderBadge(t.paymentStatus)}</td>
+                      <td>${utils.renderBadge(t.status)}</td>
+                      <td>${utils.formatDate(t.createdAt)}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadTickets);
+      }
+    }
+
+    loadTickets();
+  </script>
+</body>
+</html>

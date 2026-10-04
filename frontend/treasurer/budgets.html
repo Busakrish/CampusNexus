@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budgets & Allocations — CampusNexus Treasurer</title>
+  <meta name="description" content="Manage organizational budgets, track allocations, spending, and remaining balances by event or department.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Budgets & Allocations</h1>
+            <p class="page-subtitle">Create and track budget envelopes. Monitor spending vs. allocated amounts for each event or category.</p>
+          </div>
+          <button class="btn btn-primary" id="create-budget-btn">+ New Budget</button>
+        </div>
+
+        <!-- Summary -->
+        <div class="metrics-grid" style="margin-bottom: 1.5rem;">
+          <div class="metric-card accent-cyan">
+            <div class="metric-info">
+              <span class="metric-label">Total Allocated</span>
+              <span class="metric-value" id="stat-allocated">...</span>
+            </div>
+            <div class="metric-icon-box">📊</div>
+          </div>
+          <div class="metric-card accent-rose">
+            <div class="metric-info">
+              <span class="metric-label">Total Spent</span>
+              <span class="metric-value" id="stat-spent">...</span>
+            </div>
+            <div class="metric-icon-box">💸</div>
+          </div>
+          <div class="metric-card accent-emerald">
+            <div class="metric-info">
+              <span class="metric-label">Total Remaining</span>
+              <span class="metric-value" id="stat-remaining">...</span>
+            </div>
+            <div class="metric-icon-box">💰</div>
+          </div>
+          <div class="metric-card accent-amber">
+            <div class="metric-info">
+              <span class="metric-label">Active Budgets</span>
+              <span class="metric-value" id="stat-count">...</span>
+            </div>
+            <div class="metric-icon-box">📋</div>
+          </div>
+        </div>
+
+        <div id="budgets-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Create Budget Modal -->
+  <div class="modal-overlay" id="budget-modal">
+    <div class="modal-content">
+      <div class="card-header" style="margin-bottom: 1.5rem;">
+        <h2 class="card-title">Create Budget Allocation</h2>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('budget-modal').classList.remove('active')">✕</button>
+      </div>
+      <form id="budget-form">
+        <div class="form-group">
+          <label class="form-label">Budget Name *</label>
+          <input type="text" class="form-control" id="f-budgetName" placeholder="Annual Cultural Fest 2026" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-control" id="f-description" rows="2" placeholder="Budget purpose and scope..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Allocated Amount (₹) *</label>
+          <input type="number" class="form-control" id="f-allocatedAmount" min="0" step="0.01" placeholder="50000" required>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label">Fiscal Year</label>
+            <input type="text" class="form-control" id="f-fiscalYear" placeholder="2025-2026">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-control" id="f-category">
+              <option value="event">Event</option>
+              <option value="operations">Operations</option>
+              <option value="equipment">Equipment</option>
+              <option value="marketing">Marketing</option>
+              <option value="welfare">Student Welfare</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('budget-modal').classList.remove('active')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-budget-btn">Create Budget</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+
+    document.getElementById('create-budget-btn').onclick = () => document.getElementById('budget-modal').classList.add('active');
+
+    document.getElementById('budget-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('save-budget-btn');
+      btn.disabled = true; btn.textContent = 'Creating...';
+      try {
+        const res = await api.post('/budgets', {
+          budgetName: document.getElementById('f-budgetName').value.trim(),
+          description: document.getElementById('f-description').value.trim(),
+          allocatedAmount: parseFloat(document.getElementById('f-allocatedAmount').value),
+          fiscalYear: document.getElementById('f-fiscalYear').value.trim(),
+          category: document.getElementById('f-category').value
+        });
+        if (!res.success) throw new Error(res.message);
+        utils.toast('Budget created!', 'success');
+        document.getElementById('budget-modal').classList.remove('active');
+        document.getElementById('budget-form').reset();
+        loadBudgets();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Create Budget';
+      }
+    });
+
+    async function loadBudgets() {
+      const container = document.getElementById('budgets-container');
+      utils.renderLoading(container);
+      try {
+        const res = await api.get('/budgets');
+        if (!res.success) throw new Error(res.message);
+        const budgets = res.data.budgets || [];
+
+        // Metrics
+        const totalAllocated = budgets.reduce((s, b) => s + (b.allocatedAmount || 0), 0);
+        const totalSpent = budgets.reduce((s, b) => s + (b.spentAmount || b.usedAmount || 0), 0);
+        const totalRemaining = totalAllocated - totalSpent;
+        document.getElementById('stat-allocated').textContent = utils.formatCurrency(totalAllocated);
+        document.getElementById('stat-spent').textContent = utils.formatCurrency(totalSpent);
+        document.getElementById('stat-remaining').textContent = utils.formatCurrency(totalRemaining);
+        document.getElementById('stat-count').textContent = budgets.length;
+
+        if (budgets.length === 0) {
+          utils.renderEmpty(container, 'No budgets created', 'Create budget envelopes to track and control organizational spending.');
+          return;
+        }
+
+        container.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            ${budgets.map(b => {
+              const spent = b.spentAmount || b.usedAmount || 0;
+              const alloc = b.allocatedAmount || 1;
+              const remaining = alloc - spent;
+              const pct = Math.min(100, (spent / alloc) * 100).toFixed(0);
+              const barColor = pct >= 90 ? 'var(--accent-rose)' : pct >= 70 ? 'var(--accent-amber)' : 'var(--accent-emerald)';
+              return `
+                <div class="card card-hover">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1rem; flex-wrap:wrap;">
+                    <div>
+                      <h3 style="font-size:1.05rem; font-weight:700; margin-bottom:0.3rem;">${b.budgetName}</h3>
+                      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                        ${utils.renderBadge(b.status || 'active')}
+                        ${b.category ? `<span class="badge" style="background:var(--status-info-bg);color:var(--status-info-text);">${b.category}</span>` : ''}
+                        ${b.fiscalYear ? `<span style="font-size:0.8rem; color:var(--text-muted);">FY ${b.fiscalYear}</span>` : ''}
+                      </div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div style="font-size:1.3rem; font-weight:800; color:${remaining >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)'};">${utils.formatCurrency(remaining)}</div>
+                      <div style="font-size:0.8rem; color:var(--text-muted);">remaining</div>
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:2rem; font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.75rem; flex-wrap:wrap;">
+                    <span>Allocated: <strong>${utils.formatCurrency(alloc)}</strong></span>
+                    <span>Spent: <strong style="color:var(--accent-rose);">${utils.formatCurrency(spent)}</strong></span>
+                  </div>
+                  <div style="height:8px; background:var(--bg-surface-elevated); border-radius:4px; overflow:hidden;">
+                    <div style="height:100%; width:${pct}%; background:${barColor}; border-radius:4px; transition:width 0.5s;"></div>
+                  </div>
+                  <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.35rem; text-align:right;">${pct}% utilized</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message);
+      }
+    }
+
+    loadBudgets();
+  </script>
+</body>
+</html>

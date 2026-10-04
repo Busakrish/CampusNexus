@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fundraisers Governance — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Campus Fundraising Campaigns</h1>
+            <p class="page-subtitle">Oversee institutional fundraising campaigns, targets, and volunteer assignments.</p>
+          </div>
+          <a href="/admin/fundraiser-form.html" class="btn btn-primary">+ Create New Campaign</a>
+        </div>
+
+        <div class="card">
+          <div id="fundraisers-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    async function loadFundraisers() {
+      const container = document.getElementById('fundraisers-table-container');
+      utils.renderLoading(container, 'Loading fundraiser campaigns...');
+
+      try {
+        const res = await api.get('/fundraisers');
+        if (!res.success || !res.data.fundraisers || res.data.fundraisers.length === 0) {
+          utils.renderEmpty(container, 'No fundraisers found');
+          return;
+        }
+
+        const fundraisers = res.data.fundraisers;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Campaign ID</th>
+                  <th>Name & Purpose</th>
+                  <th>Organization</th>
+                  <th>Target Amount</th>
+                  <th>Verified Collected</th>
+                  <th>Progress</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${fundraisers.map(f => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${f.fundraiserId}</strong></td>
+                    <td>
+                      <strong>${f.name}</strong>
+                      <div style="font-size: 0.8rem; color: var(--text-muted);">${f.purpose}</div>
+                    </td>
+                    <td>${f.organization ? f.organization.name : f.organizationId}</td>
+                    <td><strong>${utils.formatCurrency(f.targetAmount)}</strong></td>
+                    <td><strong style="color: var(--accent-emerald);">${utils.formatCurrency(f.collectedAmount)}</strong></td>
+                    <td><strong>${f.progressPercentage}%</strong></td>
+                    <td>${utils.renderBadge(f.status)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadFundraisers);
+      }
+    }
+
+    loadFundraisers();
+  </script>
+</body>
+</html>

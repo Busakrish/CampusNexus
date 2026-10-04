@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Announcements — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Campus Announcements</h1>
+            <p class="page-subtitle">Official communications from organization leaders and campus administration.</p>
+          </div>
+        </div>
+
+        <div id="announcements-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    async function loadAnnouncements() {
+      const container = document.getElementById('announcements-container');
+      utils.renderLoading(container, 'Loading announcements...');
+
+      try {
+        const res = await api.get('/announcements');
+        if (!res.success || !res.data.announcements || res.data.announcements.length === 0) {
+          utils.renderEmpty(container, 'No announcements', 'There are currently no published bulletins for students.');
+          return;
+        }
+
+        const anns = res.data.announcements;
+        container.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+            ${anns.map(a => `
+              <div class="card card-hover" style="border-left: 5px solid var(--accent-cyan); padding: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                  <div>
+                    <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700; text-transform: uppercase;">
+                      ${a.organization ? a.organization.name : 'Campus Announcement'}
+                    </span>
+                    <h2 style="font-size: 1.35rem; margin-top: 0.2rem;">${a.title}</h2>
+                  </div>
+                  <span style="font-size: 0.8rem; color: var(--text-muted);">${utils.formatDate(a.publishedAt || a.createdAt)}</span>
+                </div>
+                <div style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap;">
+                  ${a.content}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadAnnouncements);
+      }
+    }
+
+    loadAnnouncements();
+  </script>
+</body>
+</html>

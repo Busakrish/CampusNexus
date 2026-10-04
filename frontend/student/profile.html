@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Profile — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Student Profile & Academic Record</h1>
+            <p class="page-subtitle">Manage your student credentials, contact info, and emergency contacts.</p>
+          </div>
+        </div>
+
+        <div class="card" style="max-width: 800px;">
+          <form id="profile-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="name">Full Name</label>
+                <input type="text" id="name" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="email">Campus Email</label>
+                <input type="email" id="email" class="form-control" disabled style="opacity: 0.7;">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="studentNumber">Student Number</label>
+                <input type="text" id="studentNumber" class="form-control" disabled style="opacity: 0.7;">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="phone">Phone Number</label>
+                <input type="tel" id="phone" class="form-control">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="major">Major / Program</label>
+                <input type="text" id="major" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="department">Department / School</label>
+                <input type="text" id="department" class="form-control">
+              </div>
+            </div>
+
+            <div class="form-group" style="max-width: 250px;">
+              <label class="form-label" for="yearOfStudy">Year of Study</label>
+              <select id="yearOfStudy" class="form-control">
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
+                <option value="5">Graduate</option>
+              </select>
+            </div>
+
+            <h3 style="font-size: 1.1rem; margin: 1.5rem 0 1rem; border-top: 1px solid var(--border-subtle); padding-top: 1.25rem;">
+              Emergency Contact Information
+            </h3>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="em-name">Contact Person Name</label>
+                <input type="text" id="em-name" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="em-phone">Contact Phone</label>
+                <input type="tel" id="em-phone" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="em-relation">Relationship</label>
+                <input type="text" id="em-relation" class="form-control" placeholder="Parent / Guardian">
+              </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+              <button type="submit" class="btn btn-primary" id="save-btn">Save Profile Changes</button>
+            </div>
+          </form>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    async function loadProfile() {
+      try {
+        const res = await api.get('/auth/me');
+        if (!res.success) throw new Error(res.message);
+
+        const u = res.data.user;
+        const sp = u.studentProfile || {};
+
+        document.getElementById('name').value = u.name || '';
+        document.getElementById('email').value = u.email || '';
+        document.getElementById('phone').value = u.phone || '';
+        document.getElementById('studentNumber').value = sp.studentNumber || 'STU-NEW';
+        document.getElementById('major').value = sp.major || '';
+        document.getElementById('department').value = sp.department || '';
+        document.getElementById('yearOfStudy').value = sp.yearOfStudy || 1;
+
+        if (sp.emergencyContact) {
+          document.getElementById('em-name').value = sp.emergencyContact.name || '';
+          document.getElementById('em-phone').value = sp.emergencyContact.phone || '';
+          document.getElementById('em-relation').value = sp.emergencyContact.relation || '';
+        }
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    document.getElementById('profile-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('save-btn');
+      btn.disabled = true;
+
+      const payload = {
+        name: document.getElementById('name').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        major: document.getElementById('major').value.trim(),
+        department: document.getElementById('department').value.trim(),
+        yearOfStudy: parseInt(document.getElementById('yearOfStudy').value, 10),
+        emergencyContact: {
+          name: document.getElementById('em-name').value.trim(),
+          phone: document.getElementById('em-phone').value.trim(),
+          relation: document.getElementById('em-relation').value.trim()
+        }
+      };
+
+      try {
+        await api.put('/auth/profile', payload);
+        utils.toast('Profile updated successfully!', 'success');
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Details — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/student/orders.html" class="btn btn-secondary btn-sm">← Back to Orders</a>
+        </div>
+
+        <div id="order-details-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('id');
+
+    async function loadOrderDetails() {
+      const container = document.getElementById('order-details-container');
+      if (!orderId) {
+        utils.renderError(container, 'No order ID specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading order details...');
+
+      try {
+        const res = await api.get(`/orders/${orderId}`);
+        if (!res.success || !res.data.order) throw new Error(res.message);
+
+        const { order, payment } = res.data;
+
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+            
+            <!-- Left: Items Table -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h2 class="card-title">Order #${order.orderId}</h2>
+                  <div style="font-size: 0.85rem; color: var(--text-muted);">Placed on ${utils.formatDateTime(order.createdAt)}</div>
+                </div>
+                ${utils.renderBadge(order.status)}
+              </div>
+
+              <div class="table-responsive" style="margin-bottom: 1.5rem;">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Options</th>
+                      <th>Qty</th>
+                      <th>Unit Price</th>
+                      <th>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${order.items.map(i => `
+                      <tr>
+                        <td><strong>${i.name}</strong></td>
+                        <td>${i.variant} / ${i.size}</td>
+                        <td>${i.quantity}</td>
+                        <td>${utils.formatCurrency(i.unitPrice)}</td>
+                        <td><strong>${utils.formatCurrency(i.subtotal)}</strong></td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; font-size: 1.25rem; font-weight: 800; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+                Total: <span style="color: var(--primary); margin-left: 0.75rem;">${utils.formatCurrency(order.totalAmount)}</span>
+              </div>
+            </div>
+
+            <!-- Right: Shipping & Payment Info -->
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div class="card">
+                <h3 style="font-size: 1.1rem; margin-bottom: 0.75rem;">Pickup Location</h3>
+                <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.5rem;">
+                  📍 ${order.shippingAddress ? order.shippingAddress.campusLocation : 'Campus Pickup Center'}
+                </p>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">
+                  Please show your Order ID at the counter during pickup hours.
+                </div>
+              </div>
+
+              <div class="card">
+                <h3 style="font-size: 1.1rem; margin-bottom: 0.75rem;">Payment Information</h3>
+                <div style="font-size: 0.9rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                  <div>Status: ${utils.renderBadge(order.paymentStatus)}</div>
+                  ${payment ? `<div>Reference: <span style="font-family: monospace;">${payment.transactionRef}</span></div>` : ''}
+                  ${payment ? `<div>Method: <strong>${payment.paymentMethod}</strong></div>` : ''}
+                  <div>Amount Paid: <strong>${utils.formatCurrency(order.totalAmount)}</strong></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadOrderDetails);
+      }
+    }
+
+    loadOrderDetails();
+  </script>
+</body>
+</html>

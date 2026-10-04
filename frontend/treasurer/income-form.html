@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post Manual Ledger Entry — CampusNexus Treasurer</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/treasurer/transactions.html" class="btn btn-secondary btn-sm">← Back to Ledger</a>
+        </div>
+
+        <div class="card" style="max-width: 760px;">
+          <h1 class="page-title" style="font-size: 1.6rem; margin-bottom: 1.5rem;">Post Manual Ledger Entry</h1>
+
+          <form id="ledger-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="organizationId">Organization *</label>
+                <select id="organizationId" class="form-control" required></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="type">Entry Type *</label>
+                <select id="type" class="form-control">
+                  <option value="INCOME">Income / Revenue (+)</option>
+                  <option value="EXPENSE">Direct Operational Expense (-)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="category">Category *</label>
+                <select id="category" class="form-control">
+                  <option value="OPERATIONAL">Operational</option>
+                  <option value="MEMBERSHIP">Membership</option>
+                  <option value="EVENT">Event</option>
+                  <option value="MERCHANDISE">Merchandise</option>
+                  <option value="FUNDRAISER">Fundraiser</option>
+                  <option value="OTHER">Other Institutional Grant</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="amount">Amount ($) *</label>
+                <input type="number" id="amount" class="form-control" min="0.01" step="any" placeholder="100.00" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="description">Audit Memo / Description *</label>
+              <textarea id="description" class="form-control" placeholder="Provide reason, invoice reference, or grant details..." required></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+              <a href="/treasurer/transactions.html" class="btn btn-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary" id="submit-btn">Post Ledger Transaction</button>
+            </div>
+          </form>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+
+    async function loadOrgs() {
+      try {
+        const res = await api.get('/organizations');
+        if (res.success && res.data.organizations) {
+          const select = document.getElementById('organizationId');
+          select.innerHTML = res.data.organizations.map(o => `<option value="${o.organizationId}">${o.name}</option>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('ledger-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+
+      const payload = {
+        organizationId: document.getElementById('organizationId').value,
+        type: document.getElementById('type').value,
+        category: document.getElementById('category').value,
+        amount: Number(document.getElementById('amount').value),
+        description: document.getElementById('description').value.trim()
+      };
+
+      try {
+        await api.post('/transactions/manual', payload);
+        utils.toast('Manual ledger transaction posted successfully!', 'success');
+        setTimeout(() => window.location.href = '/treasurer/transactions.html', 500);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+        btn.disabled = false;
+      }
+    });
+
+    loadOrgs();
+  </script>
+</body>
+</html>

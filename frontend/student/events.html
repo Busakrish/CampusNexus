@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Events — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Campus Events & Workshops</h1>
+            <p class="page-subtitle">Discover hackathons, seminars, social mixers, and technical masterclasses.</p>
+          </div>
+        </div>
+
+        <!-- Search & Category Filters -->
+        <div class="toolbar">
+          <div class="search-input-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" class="form-control" placeholder="Search event name, keywords or venue...">
+          </div>
+          <div class="filter-group">
+            <select id="category-filter" class="form-control" style="width: auto;">
+              <option value="">All Categories</option>
+              <option value="Workshop">Workshops</option>
+              <option value="Hackathon">Hackathons</option>
+              <option value="Seminar">Seminars</option>
+              <option value="Competition">Competitions</option>
+              <option value="Cultural">Cultural</option>
+              <option value="Sports">Sports</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Events Grid -->
+        <div id="events-grid-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    async function loadEvents() {
+      const container = document.getElementById('events-grid-container');
+      utils.renderLoading(container, 'Loading campus events...');
+
+      const search = document.getElementById('search-input').value.trim();
+      const category = document.getElementById('category-filter').value;
+
+      try {
+        const res = await api.get('/events', { search, category, status: 'Published' });
+        if (!res.success || !res.data.events || res.data.events.length === 0) {
+          utils.renderEmpty(container, 'No published events found', 'Try adjusting your search query or check back soon.');
+          return;
+        }
+
+        const events = res.data.events;
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+            ${events.map(e => `
+              <div class="card card-hover" style="display: flex; flex-direction: column; overflow: hidden; padding: 0;">
+                <div style="height: 160px; background: linear-gradient(135deg, rgba(79, 70, 229, 0.3), rgba(6, 182, 212, 0.3)), url('${e.banner || 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=600&q=80'}'); background-size: cover; background-position: center; position: relative;">
+                  <div style="position: absolute; top: 0.75rem; right: 0.75rem;">
+                    ${utils.renderBadge(e.status)}
+                  </div>
+                  <div style="position: absolute; bottom: 0.75rem; left: 0.75rem;">
+                    <span class="badge" style="background: rgba(0,0,0,0.6); color: #fff;">${e.category}</span>
+                  </div>
+                </div>
+                <div style="padding: 1.25rem; flex: 1; display: flex; flex-direction: column;">
+                  <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; line-height: 1.3;">${e.eventName}</h3>
+                  <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; margin-bottom: 1rem; flex: 1;">
+                    ${e.description.length > 110 ? e.description.substring(0, 107) + '...' : e.description}
+                  </p>
+                  
+                  <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1.25rem;">
+                    <div>📅 <strong>${utils.formatDate(e.startDate)}</strong> (${e.startTime} - ${e.endTime})</div>
+                    <div>📍 ${e.venue} ${e.room ? `(${e.room})` : ''}</div>
+                    <div>👥 Available Seats: <strong>${e.availableSeats} / ${e.maximumCapacity}</strong></div>
+                    <div>💰 Fee: <strong>${e.registrationFee > 0 ? utils.formatCurrency(e.registrationFee) : '<span style="color: var(--accent-emerald);">FREE</span>'}</strong></div>
+                  </div>
+
+                  <a href="/student/event-details.html?id=${e.eventId}" class="btn btn-primary" style="width: 100%;">
+                    View Details & Register →
+                  </a>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadEvents);
+      }
+    }
+
+    document.getElementById('search-input').addEventListener('input', () => {
+      clearTimeout(window._searchTimer);
+      window._searchTimer = setTimeout(loadEvents, 300);
+    });
+
+    document.getElementById('category-filter').addEventListener('change', loadEvents);
+
+    loadEvents();
+  </script>
+</body>
+</html>

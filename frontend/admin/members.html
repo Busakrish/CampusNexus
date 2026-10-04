@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Members Management — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Campus Members Management</h1>
+            <p class="page-subtitle">View and audit student club memberships across all campus organizations.</p>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="status-filter" class="form-control" style="width: auto;">
+              <option value="">All Statuses</option>
+              <option value="Active">Active</option>
+              <option value="Pending">Pending</option>
+              <option value="Expired">Expired</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="members-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    async function loadMembers() {
+      const container = document.getElementById('members-table-container');
+      utils.renderLoading(container, 'Loading campus membership records...');
+
+      const status = document.getElementById('status-filter').value;
+
+      try {
+        const res = await api.get('/memberships', { status });
+        if (!res.success || !res.data.memberships || res.data.memberships.length === 0) {
+          utils.renderEmpty(container, 'No memberships found');
+          return;
+        }
+
+        const mems = res.data.memberships;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Membership ID</th>
+                  <th>Student Name</th>
+                  <th>Organization</th>
+                  <th>Type</th>
+                  <th>Valid Period</th>
+                  <th>Dues</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${mems.map(m => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${m.membershipId}</strong></td>
+                    <td>
+                      <strong>${m.user ? m.user.name : m.userId}</strong>
+                      <div style="font-size: 0.8rem; color: var(--text-muted);">${m.user ? m.user.email : ''}</div>
+                    </td>
+                    <td><strong>${m.organization ? m.organization.name : m.organizationId}</strong></td>
+                    <td>${m.membershipType}</td>
+                    <td>${utils.formatDate(m.startDate)} – ${utils.formatDate(m.endDate)}</td>
+                    <td><strong>${utils.formatCurrency(m.feeAmount)}</strong></td>
+                    <td>${utils.renderBadge(m.status)}</td>
+                    <td>
+                      <a href="/admin/member-details.html?id=${m.membershipId}" class="btn btn-secondary btn-sm">Audit Record</a>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadMembers);
+      }
+    }
+
+    document.getElementById('status-filter').addEventListener('change', loadMembers);
+
+    loadMembers();
+  </script>
+</body>
+</html>

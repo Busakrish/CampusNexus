@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Organizations — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Campus Organizations & Societies</h1>
+            <p class="page-subtitle">Charter new student organizations, assign lead organizers, and set membership fee rules.</p>
+          </div>
+          <button class="btn btn-primary" onclick="openOrgModal()">+ Charter New Organization</button>
+        </div>
+
+        <div class="card">
+          <div id="orgs-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Create Org Modal -->
+  <div class="modal-overlay" id="org-modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 1.25rem; font-size: 1.3rem;">Charter New Student Organization</h3>
+      <form id="org-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="org-name">Organization Name *</label>
+            <input type="text" id="org-name" class="form-control" placeholder="e.g. Robotics & AI Club" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="org-code">Code / Acronym *</label>
+            <input type="text" id="org-code" class="form-control" placeholder="RAIC" required uppercase>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="org-desc">Mission & Description</label>
+          <textarea id="org-desc" class="form-control" placeholder="Describe the club purpose and charter..."></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="org-category">Category</label>
+            <select id="org-category" class="form-control">
+              <option value="Technology">Technology</option>
+              <option value="Academic">Academic</option>
+              <option value="Cultural">Cultural</option>
+              <option value="Sports">Sports</option>
+              <option value="Community">Community</option>
+              <option value="Arts">Arts</option>
+              <option value="General">General</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="org-lead">Lead Organizer User ID *</label>
+            <select id="org-lead" class="form-control" required></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="org-fee">Annual Membership Fee ($)</label>
+            <input type="number" id="org-fee" class="form-control" min="0" value="0" step="any">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="org-email">Contact Email</label>
+            <input type="email" id="org-email" class="form-control" placeholder="contact@club.org">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeOrgModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Charter Organization</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    async function loadOrganizations() {
+      const container = document.getElementById('orgs-table-container');
+      utils.renderLoading(container, 'Loading organizations...');
+
+      try {
+        const res = await api.get('/organizations');
+        if (!res.success || !res.data.organizations || res.data.organizations.length === 0) {
+          utils.renderEmpty(container, 'No organizations chartered');
+          return;
+        }
+
+        const orgs = res.data.organizations;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Organization Name</th>
+                  <th>Category</th>
+                  <th>Lead Organizer</th>
+                  <th>Membership Dues</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${orgs.map(o => `
+                  <tr>
+                    <td><strong style="font-family: monospace; color: var(--accent-cyan);">${o.code}</strong></td>
+                    <td>
+                      <strong>${o.name}</strong>
+                      <div style="font-size: 0.8rem; color: var(--text-muted);">${o.contactEmail || ''}</div>
+                    </td>
+                    <td>${o.category}</td>
+                    <td><code>${o.leadOrganizerId}</code></td>
+                    <td><strong>${o.membershipFee > 0 ? utils.formatCurrency(o.membershipFee) : 'Free'}</strong></td>
+                    <td>${utils.renderBadge(o.status)}</td>
+                    <td>
+                      ${o.status === 'Active' ? `
+                        <button class="btn btn-danger btn-sm" onclick="changeOrgStatus('${o.organizationId}', 'Suspended')">Suspend</button>
+                      ` : `
+                        <button class="btn btn-success btn-sm" onclick="changeOrgStatus('${o.organizationId}', 'Active')">Activate</button>
+                      `}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadOrganizations);
+      }
+    }
+
+    async function loadUsersDropdown() {
+      try {
+        const res = await api.get('/users');
+        if (res.success && res.data.users) {
+          const select = document.getElementById('org-lead');
+          select.innerHTML = res.data.users.map(u => `<option value="${u.userId}">${u.name} (${u.role})</option>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    function openOrgModal() {
+      document.getElementById('org-modal').classList.add('active');
+    }
+
+    function closeOrgModal() {
+      document.getElementById('org-modal').classList.remove('active');
+    }
+
+    document.getElementById('org-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('org-name').value.trim(),
+        code: document.getElementById('org-code').value.trim().toUpperCase(),
+        description: document.getElementById('org-desc').value.trim(),
+        category: document.getElementById('org-category').value,
+        leadOrganizerId: document.getElementById('org-lead').value,
+        membershipFee: Number(document.getElementById('org-fee').value) || 0,
+        contactEmail: document.getElementById('org-email').value.trim()
+      };
+
+      try {
+        await api.post('/organizations', payload);
+        utils.toast('Organization chartered successfully!', 'success');
+        closeOrgModal();
+        loadOrganizations();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    });
+
+    async function changeOrgStatus(orgId, status) {
+      try {
+        await api.put(`/organizations/${orgId}/status`, { status });
+        utils.toast(`Organization marked as ${status}`, 'info');
+        loadOrganizations();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadOrganizations();
+    loadUsersDropdown();
+  </script>
+</body>
+</html>

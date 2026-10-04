@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Income Management — CampusNexus Treasurer</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Verified Incomes Management</h1>
+            <p class="page-subtitle">Track revenue streams from membership fees, ticket registrations, store sales, and donations.</p>
+          </div>
+          <a href="/treasurer/income-form.html" class="btn btn-primary">+ Post Manual Income Entry</a>
+        </div>
+
+        <div class="card">
+          <div id="income-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+
+    async function loadIncome() {
+      const container = document.getElementById('income-table-container');
+      utils.renderLoading(container, 'Loading income transactions...');
+
+      try {
+        const res = await api.get('/transactions', { type: 'INCOME' });
+        if (!res.success || !res.data.transactions || res.data.transactions.length === 0) {
+          utils.renderEmpty(container, 'No income records found');
+          return;
+        }
+
+        const txns = res.data.transactions;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Transaction ID</th>
+                  <th>Revenue Stream</th>
+                  <th>Amount</th>
+                  <th>Source Reference</th>
+                  <th>Description</th>
+                  <th>Recorded Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${txns.map(t => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${t.transactionId}</strong></td>
+                    <td><span class="badge badge-active">${t.category}</span></td>
+                    <td><strong style="color: var(--accent-emerald); font-size: 1rem;">+${utils.formatCurrency(t.amount)}</strong></td>
+                    <td><code>${t.sourceEntity} (#${t.sourceId})</code></td>
+                    <td>${t.description}</td>
+                    <td>${utils.formatDate(t.createdAt)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadIncome);
+      }
+    }
+
+    loadIncome();
+  </script>
+</body>
+</html>

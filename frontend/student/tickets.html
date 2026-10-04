@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Tickets & QR Passes — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">My Event Tickets & QR Passes</h1>
+            <p class="page-subtitle">Present your verified QR code at the door for fast check-in.</p>
+          </div>
+          <a href="/student/events.html" class="btn btn-secondary">Browse More Events →</a>
+        </div>
+
+        <div id="tickets-list-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    async function loadStudentTickets() {
+      const container = document.getElementById('tickets-list-container');
+      utils.renderLoading(container, 'Loading your event tickets...');
+
+      try {
+        const res = await api.get('/tickets');
+        if (!res.success || !res.data.tickets || res.data.tickets.length === 0) {
+          utils.renderEmpty(container, 'No tickets issued yet', 'Browse active campus events and register to receive your digital ticket pass.');
+          return;
+        }
+
+        const tickets = res.data.tickets;
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem;">
+            ${tickets.map(t => `
+              <div class="card card-hover" style="display: flex; flex-direction: column; position: relative; border-left: 6px solid ${t.status === 'Valid' ? 'var(--accent-emerald)' : 'var(--border-subtle)'};">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                  <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">TICKET PASS</span>
+                    <h3 style="font-size: 1.15rem; margin-top: 0.2rem;">${t.event ? t.event.eventName : 'Event Ticket'}</h3>
+                  </div>
+                  ${utils.renderBadge(t.status)}
+                </div>
+
+                <!-- QR Code Display Box -->
+                <div style="background: #FFFFFF; padding: 1rem; border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 1.25rem;">
+                  <img src="${t.qrCode}" alt="Ticket QR Code" style="width: 180px; height: 180px;">
+                  <div style="font-family: monospace; color: #111827; font-size: 0.85rem; font-weight: 700; margin-top: 0.5rem;">
+                    ${t.ticketId}
+                  </div>
+                </div>
+
+                <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.4rem;">
+                  <div>🎟️ Type: <strong>${t.ticketType}</strong></div>
+                  <div>💰 Price Paid: <strong>${utils.formatCurrency(t.price)}</strong></div>
+                  ${t.event ? `<div>📍 Venue: <strong>${t.event.venue}</strong></div>` : ''}
+                  ${t.event ? `<div>📅 Date: <strong>${utils.formatDate(t.event.startDate)} (${t.event.startTime})</strong></div>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadStudentTickets);
+      }
+    }
+
+    loadStudentTickets();
+  </script>
+</body>
+</html>

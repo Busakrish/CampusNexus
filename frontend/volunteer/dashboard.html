@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Volunteer Dashboard — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Volunteer Operations Hub</h1>
+            <p class="page-subtitle">Manage assigned task duties, QR gate check-ins, fundraiser collections, and expenses.</p>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <a href="/volunteer/qr-scanner.html" class="btn btn-primary">Scan QR Tickets 📷</a>
+            <a href="/volunteer/expenses.html" class="btn btn-secondary">Submit Claim 🧾</a>
+          </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+          <div class="metric-card accent-cyan">
+            <div class="metric-info">
+              <span class="metric-label">Pending Tasks</span>
+              <span class="metric-value" id="stat-tasks">...</span>
+            </div>
+            <div class="metric-icon-box">📋</div>
+          </div>
+
+          <div class="metric-card accent-emerald">
+            <div class="metric-info">
+              <span class="metric-label">Completed Tasks</span>
+              <span class="metric-value" id="stat-completed">...</span>
+            </div>
+            <div class="metric-icon-box">✓</div>
+          </div>
+
+          <div class="metric-card accent-purple">
+            <div class="metric-info">
+              <span class="metric-label">Verified Collections</span>
+              <span class="metric-value" id="stat-collections">...</span>
+            </div>
+            <div class="metric-icon-box">💰</div>
+          </div>
+
+          <div class="metric-card accent-amber">
+            <div class="metric-info">
+              <span class="metric-label">Pending Claims</span>
+              <span class="metric-value" id="stat-expenses">...</span>
+            </div>
+            <div class="metric-icon-box">🧾</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          
+          <!-- Assigned Tasks Card -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">My Active Tasks</h2>
+              <a href="/volunteer/tasks.html" class="btn btn-secondary btn-sm">All Tasks →</a>
+            </div>
+            <div id="tasks-container"></div>
+          </div>
+
+          <!-- Quick Actions & Scanner Card -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Quick Gate Access</h2>
+            </div>
+            <div style="text-align: center; padding: 1rem 0;">
+              <div style="font-size: 3rem; margin-bottom: 0.5rem;">📷</div>
+              <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Ticket QR Check-in</h3>
+              <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
+                Validate student admission passes and record real-time event attendance.
+              </p>
+              <a href="/volunteer/qr-scanner.html" class="btn btn-primary" style="width: 100%;">Open QR Scanner</a>
+            </div>
+          </div>
+
+          <!-- Recent Expenses & Claims -->
+          <div class="card dashboard-full">
+            <div class="card-header">
+              <h2 class="card-title">My Recent Expense Claims</h2>
+              <a href="/volunteer/expenses.html" class="btn btn-secondary btn-sm">Claim History →</a>
+            </div>
+            <div id="expenses-container"></div>
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('VOLUNTEER', 'ADMIN');
+
+    async function loadVolunteerDashboard() {
+      try {
+        const res = await api.get('/dashboard/volunteer');
+        if (!res.success) throw new Error(res.message);
+
+        const { metrics, pendingTasks, recentExpenses } = res.data;
+
+        document.getElementById('stat-tasks').textContent = metrics.pendingTasksCount;
+        document.getElementById('stat-completed').textContent = metrics.completedTasksCount;
+        document.getElementById('stat-collections').textContent = utils.formatCurrency(metrics.verifiedCollectionsAmount);
+        document.getElementById('stat-expenses').textContent = utils.formatCurrency(metrics.pendingExpenseAmount);
+
+        // Tasks
+        const taskContainer = document.getElementById('tasks-container');
+        if (!pendingTasks || pendingTasks.length === 0) {
+          utils.renderEmpty(taskContainer, 'No pending tasks', 'You are currently caught up with all assigned volunteer duties.');
+        } else {
+          taskContainer.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+              ${pendingTasks.map(t => `
+                <div style="padding: 1rem; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                  <div>
+                    <strong style="font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">${t.title}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 0.75rem;">
+                      <span>Due: ${utils.formatDate(t.dueDate)}</span>
+                      <span>Spending Limit: ${utils.formatCurrency(t.spendingLimit)}</span>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    ${utils.renderBadge(t.status)}
+                    <a href="/volunteer/task-details.html?id=${t.taskId}" class="btn btn-secondary btn-sm">View</a>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        // Expenses
+        const expContainer = document.getElementById('expenses-container');
+        if (!recentExpenses || recentExpenses.length === 0) {
+          utils.renderEmpty(expContainer, 'No expense claims submitted', 'Submit receipts for logistics or equipment to request reimbursement.');
+        } else {
+          expContainer.innerHTML = `
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Claim ID</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Submitted On</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recentExpenses.map(e => `
+                    <tr>
+                      <td><strong style="font-family: monospace;">#${e.expenseId}</strong></td>
+                      <td>${e.category}</td>
+                      <td>${e.description}</td>
+                      <td><strong style="color: var(--text-primary);">${utils.formatCurrency(e.amount)}</strong></td>
+                      <td>${utils.formatDate(e.createdAt)}</td>
+                      <td>${utils.renderBadge(e.status)}</td>
+                      <td>
+                        <a href="/volunteer/expense-details.html?id=${e.expenseId}" class="btn btn-secondary btn-sm">Details</a>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadVolunteerDashboard();
+  </script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Event — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/admin/events.html" class="btn btn-secondary btn-sm">← Back to Events</a>
+        </div>
+
+        <div class="card" style="max-width: 800px;">
+          <h1 class="page-title" style="font-size: 1.6rem; margin-bottom: 1.5rem;">Create New Institutional Event</h1>
+
+          <form id="event-form">
+            <div class="form-group">
+              <label class="form-label" for="organizationId">Host Organization *</label>
+              <select id="organizationId" class="form-control" required></select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="eventName">Event Title *</label>
+              <input type="text" id="eventName" class="form-control" placeholder="e.g. Annual Technology Summit 2026" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="description">Detailed Description</label>
+              <textarea id="description" class="form-control" placeholder="Provide event schedule, speaker info, and prerequisites..."></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="category">Category</label>
+                <select id="category" class="form-control">
+                  <option value="Workshop">Workshop</option>
+                  <option value="Hackathon">Hackathon</option>
+                  <option value="Seminar">Seminar</option>
+                  <option value="Competition">Competition</option>
+                  <option value="Cultural">Cultural</option>
+                  <option value="Sports">Sports</option>
+                  <option value="Social">Social</option>
+                  <option value="Meeting">Meeting</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="banner">Banner Image URL</label>
+                <input type="url" id="banner" class="form-control" placeholder="https://images.unsplash.com/...">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="startDate">Start Date *</label>
+                <input type="date" id="startDate" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="endDate">End Date *</label>
+                <input type="date" id="endDate" class="form-control" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="startTime">Start Time</label>
+                <input type="time" id="startTime" class="form-control" value="09:00">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="endTime">End Time</label>
+                <input type="time" id="endTime" class="form-control" value="17:00">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="venue">Venue / Auditorium *</label>
+                <input type="text" id="venue" class="form-control" placeholder="e.g. Main Auditorium" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="room">Room / Hall</label>
+                <input type="text" id="room" class="form-control" placeholder="Hall B">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="maximumCapacity">Maximum Capacity (Seats) *</label>
+                <input type="number" id="maximumCapacity" class="form-control" min="1" value="100" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="registrationDeadline">Registration Deadline *</label>
+                <input type="datetime-local" id="registrationDeadline" class="form-control" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="registrationFee">Registration Fee ($)</label>
+                <input type="number" id="registrationFee" class="form-control" min="0" value="0" step="any">
+              </div>
+              <div class="form-group" style="display: flex; align-items: center; margin-top: 1.75rem;">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="requiresMembership">
+                  Requires Active Organization Membership
+                </label>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+              <a href="/admin/events.html" class="btn btn-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary" id="submit-btn">Create & Save Event</button>
+            </div>
+          </form>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN', 'ORGANIZER');
+
+    async function loadOrgs() {
+      try {
+        const res = await api.get('/organizations');
+        if (res.success && res.data.organizations) {
+          const select = document.getElementById('organizationId');
+          select.innerHTML = res.data.organizations.map(o => `<option value="${o.organizationId}">${o.name} (${o.code})</option>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('event-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+
+      const payload = {
+        organizationId: document.getElementById('organizationId').value,
+        eventName: document.getElementById('eventName').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        category: document.getElementById('category').value,
+        banner: document.getElementById('banner').value.trim(),
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value,
+        startTime: document.getElementById('startTime').value,
+        endTime: document.getElementById('endTime').value,
+        venue: document.getElementById('venue').value.trim(),
+        room: document.getElementById('room').value.trim(),
+        maximumCapacity: parseInt(document.getElementById('maximumCapacity').value, 10),
+        registrationDeadline: document.getElementById('registrationDeadline').value,
+        registrationFee: Number(document.getElementById('registrationFee').value) || 0,
+        requiresMembership: document.getElementById('requiresMembership').checked
+      };
+
+      try {
+        const res = await api.post('/events', payload);
+        utils.toast('Event created successfully as Draft', 'success');
+        setTimeout(() => window.location.href = '/admin/events.html', 500);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+        btn.disabled = false;
+      }
+    });
+
+    loadOrgs();
+  </script>
+</body>
+</html>

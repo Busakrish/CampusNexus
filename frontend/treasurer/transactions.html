@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Transactions Ledger — CampusNexus Treasurer</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Master Financial Ledger</h1>
+            <p class="page-subtitle">Traceable accounting records for memberships, registrations, merchandise, collections, and disbursements.</p>
+          </div>
+          <a href="/treasurer/income-form.html" class="btn btn-primary">+ Record Manual Ledger Entry</a>
+        </div>
+
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="type-filter" class="form-control" style="width: auto;">
+              <option value="">All Types (Income & Outflow)</option>
+              <option value="INCOME">Income (+)</option>
+              <option value="EXPENSE">Expense (-)</option>
+              <option value="REIMBURSEMENT">Reimbursement (-)</option>
+            </select>
+            <select id="category-filter" class="form-control" style="width: auto;">
+              <option value="">All Categories</option>
+              <option value="MEMBERSHIP">Membership Dues</option>
+              <option value="EVENT">Event Registrations</option>
+              <option value="MERCHANDISE">Merchandise Sales</option>
+              <option value="FUNDRAISER">Fundraiser Collections</option>
+              <option value="REIMBURSEMENT">Reimbursements</option>
+              <option value="OPERATIONAL">Operational</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="transactions-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+
+    async function loadTransactions() {
+      const container = document.getElementById('transactions-table-container');
+      utils.renderLoading(container, 'Loading ledger transactions...');
+
+      const type = document.getElementById('type-filter').value;
+      const category = document.getElementById('category-filter').value;
+
+      try {
+        const res = await api.get('/transactions', { type, category });
+        if (!res.success || !res.data.transactions || res.data.transactions.length === 0) {
+          utils.renderEmpty(container, 'No transactions found');
+          return;
+        }
+
+        const { transactions, summary } = res.data;
+        container.innerHTML = `
+          <div style="background: var(--bg-surface-elevated); padding: 1rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>Total Inflow: <strong style="color: var(--accent-emerald);">${utils.formatCurrency(summary.totalIncome)}</strong></div>
+            <div>Total Outflow: <strong style="color: var(--accent-rose);">${utils.formatCurrency(summary.totalOutflow)}</strong></div>
+            <div>Net Balance: <strong style="color: var(--accent-cyan); font-size: 1.15rem;">${utils.formatCurrency(summary.netBalance)}</strong></div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Transaction ID</th>
+                  <th>Type</th>
+                  <th>Category</th>
+                  <th>Amount</th>
+                  <th>Source Traceability</th>
+                  <th>Description</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${transactions.map(t => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${t.transactionId}</strong></td>
+                    <td>
+                      <span class="badge ${t.type === 'INCOME' ? 'badge-active' : 'badge-danger'}">${t.type}</span>
+                    </td>
+                    <td><strong>${t.category}</strong></td>
+                    <td>
+                      <strong style="color: ${t.type === 'INCOME' ? 'var(--accent-emerald)' : 'var(--accent-rose)'}; font-size: 0.95rem;">
+                        ${t.type === 'INCOME' ? '+' : '-'}${utils.formatCurrency(t.amount)}
+                      </strong>
+                    </td>
+                    <td>
+                      <span style="font-size: 0.8rem; font-family: monospace; color: var(--accent-cyan);">
+                        ${t.sourceEntity} (${t.sourceId})
+                      </span>
+                    </td>
+                    <td style="font-size: 0.85rem;">${t.description}</td>
+                    <td>${utils.formatDate(t.createdAt)}</td>
+                    <td>
+                      <a href="/treasurer/transaction-details.html?id=${t.transactionId}" class="btn btn-secondary btn-sm">Audit</a>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadTransactions);
+      }
+    }
+
+    document.getElementById('type-filter').addEventListener('change', loadTransactions);
+    document.getElementById('category-filter').addEventListener('change', loadTransactions);
+
+    loadTransactions();
+  </script>
+</body>
+</html>

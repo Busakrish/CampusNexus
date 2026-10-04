@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campus Merchandise Store — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Campus Organization Store</h1>
+            <p class="page-subtitle">Official society hoodies, accessories, stationery, and club gear.</p>
+          </div>
+          <a href="/student/orders.html" class="btn btn-secondary">My Orders 📦</a>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-input-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" class="form-control" placeholder="Search products...">
+          </div>
+          <div class="filter-group">
+            <select id="category-filter" class="form-control" style="width: auto;">
+              <option value="">All Categories</option>
+              <option value="Apparel">Apparel</option>
+              <option value="Accessories">Accessories</option>
+              <option value="Stationery">Stationery</option>
+              <option value="Memorabilia">Memorabilia</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="products-grid-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    async function loadProducts() {
+      const container = document.getElementById('products-grid-container');
+      utils.renderLoading(container, 'Loading store catalog...');
+
+      const search = document.getElementById('search-input').value.trim();
+      const category = document.getElementById('category-filter').value;
+
+      try {
+        const res = await api.get('/products', { search, category });
+        if (!res.success || !res.data.products || res.data.products.length === 0) {
+          utils.renderEmpty(container, 'No products found', 'Try adjusting your search or category filter.');
+          return;
+        }
+
+        const products = res.data.products;
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
+            ${products.map(p => `
+              <div class="card card-hover" style="display: flex; flex-direction: column; overflow: hidden; padding: 0;">
+                <div style="height: 200px; background: url('${(p.images && p.images[0]) || 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=600&q=80'}'); background-size: cover; background-position: center; position: relative;">
+                  <div style="position: absolute; top: 0.75rem; right: 0.75rem;">
+                    <span class="badge ${p.stock > 0 ? 'badge-active' : 'badge-danger'}">
+                      ${p.stock > 0 ? `${p.stock} in stock` : 'Out of Stock'}
+                    </span>
+                  </div>
+                </div>
+                <div style="padding: 1.25rem; flex: 1; display: flex; flex-direction: column;">
+                  <span style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700; text-transform: uppercase;">${p.category}</span>
+                  <h3 style="font-size: 1.15rem; margin: 0.25rem 0 0.5rem;">${p.name}</h3>
+                  <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem; flex: 1;">
+                    ${p.description.length > 90 ? p.description.substring(0, 87) + '...' : p.description}
+                  </p>
+                  
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <strong style="font-size: 1.3rem; color: var(--text-primary);">${utils.formatCurrency(p.price)}</strong>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">${p.variants.length} options</span>
+                  </div>
+
+                  <a href="/student/product-details.html?id=${p.productId}" class="btn ${p.stock > 0 ? 'btn-primary' : 'btn-secondary'}" style="width: 100%;">
+                    ${p.stock > 0 ? 'View & Purchase →' : 'View Item'}
+                  </a>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadProducts);
+      }
+    }
+
+    document.getElementById('search-input').addEventListener('input', () => {
+      clearTimeout(window._searchTimer);
+      window._searchTimer = setTimeout(loadProducts, 300);
+    });
+
+    document.getElementById('category-filter').addEventListener('change', loadProducts);
+
+    loadProducts();
+  </script>
+</body>
+</html>

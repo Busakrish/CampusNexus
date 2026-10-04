@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Organization — CampusNexus Organizer</title>
+  <meta name="description" content="View and manage your organization's profile, members, and settings.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">My Organization</h1>
+            <p class="page-subtitle">Your organization's profile, active memberships, and operational overview.</p>
+          </div>
+        </div>
+
+        <!-- Organization Info -->
+        <div class="dashboard-grid">
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Organization Profile</h2>
+              <button class="btn btn-secondary btn-sm" id="edit-org-btn">Edit ✏️</button>
+            </div>
+            <div id="org-info-container">
+              <div class="spinner" style="margin: 2rem auto;"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Membership Summary</h2>
+            </div>
+            <div id="membership-summary">
+              <div class="spinner" style="margin: 2rem auto;"></div>
+            </div>
+          </div>
+
+          <!-- Members Table -->
+          <div class="card dashboard-full">
+            <div class="card-header">
+              <h2 class="card-title">Active Members</h2>
+              <select class="form-control" id="member-filter" style="width: auto;" onchange="loadMembers()">
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+            <div id="members-container"></div>
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ORGANIZER', 'ADMIN');
+
+    async function loadOrganization() {
+      const container = document.getElementById('org-info-container');
+      try {
+        const user = auth.getUser();
+        // Organizer sees their own organization
+        const res = await api.get('/organizations', { organizerId: user.userId });
+        if (!res.success) throw new Error(res.message);
+        const orgs = res.data.organizations || [];
+        const org = orgs[0];
+
+        if (!org) {
+          container.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">No organization associated with your account. Contact the administrator.</p>`;
+          return;
+        }
+
+        container.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">${org.name}</div>
+            <div>${utils.renderBadge(org.status || 'active')}</div>
+            ${org.description ? `<p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.6;">${org.description}</p>` : ''}
+            <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+              ${org.contactEmail ? `<div style="font-size:0.85rem;"><span style="color:var(--text-muted);">✉️ Email:</span> <strong>${org.contactEmail}</strong></div>` : ''}
+              ${org.website ? `<div style="font-size:0.85rem;"><span style="color:var(--text-muted);">🌐 Website:</span> <a href="${org.website}" target="_blank">${org.website}</a></div>` : ''}
+              <div style="font-size:0.85rem;"><span style="color:var(--text-muted);">🆔 Org ID:</span> <span style="font-family:monospace;">${org.organizationId}</span></div>
+            </div>
+          </div>
+        `;
+
+        // Membership summary
+        const mRes = await api.get('/memberships', { organizationId: org.organizationId });
+        if (mRes.success) {
+          const memberships = mRes.data.memberships || [];
+          const active = memberships.filter(m => m.status === 'active').length;
+          const pending = memberships.filter(m => m.status === 'pending').length;
+          document.getElementById('membership-summary').innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:0.75rem;">
+              <div style="display:flex; justify-content:space-between; padding:0.75rem; background:var(--bg-surface-elevated); border-radius:var(--radius-md);">
+                <span style="color:var(--text-muted);">Total Members</span><strong>${memberships.length}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:0.75rem; background:var(--bg-surface-elevated); border-radius:var(--radius-md);">
+                <span style="color:var(--text-muted);">Active</span><strong style="color:var(--accent-emerald);">${active}</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; padding:0.75rem; background:var(--bg-surface-elevated); border-radius:var(--radius-md);">
+                <span style="color:var(--text-muted);">Pending Approval</span><strong style="color:var(--accent-amber);">${pending}</strong>
+              </div>
+            </div>
+          `;
+        }
+
+        // Store org ID for members tab
+        window._orgId = org.organizationId;
+        loadMembers();
+
+      } catch (err) {
+        container.innerHTML = `<p style="color:var(--accent-rose);">${err.message}</p>`;
+      }
+    }
+
+    async function loadMembers() {
+      const container = document.getElementById('members-container');
+      if (!window._orgId) { utils.renderEmpty(container, 'No organization loaded', ''); return; }
+      utils.renderLoading(container);
+      try {
+        const status = document.getElementById('member-filter').value;
+        const params = { organizationId: window._orgId };
+        if (status) params.status = status;
+        const res = await api.get('/memberships', params);
+        if (!res.success) throw new Error(res.message);
+        const members = res.data.memberships || [];
+
+        if (members.length === 0) {
+          utils.renderEmpty(container, 'No members found', 'No memberships match the selected filter.');
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Joined On</th>
+                  <th>Expiry</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${members.map(m => `
+                  <tr>
+                    <td><strong>${m.user ? m.user.name : m.userId}</strong></td>
+                    <td>${m.user ? m.user.email : '—'}</td>
+                    <td>${m.membershipRole || 'Member'}</td>
+                    <td>${utils.formatDate(m.joinedDate || m.createdAt)}</td>
+                    <td>${m.expiryDate ? utils.formatDate(m.expiryDate) : '—'}</td>
+                    <td>${utils.renderBadge(m.status)}</td>
+                    <td>
+                      ${m.status === 'pending' ? `<button class="btn btn-success btn-sm" onclick="approveMembership('${m.membershipId}')">Approve</button>` : ''}
+                      ${m.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="revokeMembership('${m.membershipId}')">Revoke</button>` : ''}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message);
+      }
+    }
+
+    async function approveMembership(membershipId) {
+      try {
+        const res = await api.put(`/memberships/${membershipId}/approve`, {});
+        if (res.success) { utils.toast('Membership approved!', 'success'); loadOrganization(); }
+        else throw new Error(res.message);
+      } catch (err) { utils.toast(err.message, 'error'); }
+    }
+
+    async function revokeMembership(membershipId) {
+      if (!confirm('Revoke this membership?')) return;
+      try {
+        const res = await api.put(`/memberships/${membershipId}/status`, { status: 'revoked' });
+        if (res.success) { utils.toast('Membership revoked.', 'info'); loadOrganization(); }
+        else throw new Error(res.message);
+      } catch (err) { utils.toast(err.message, 'error'); }
+    }
+
+    loadOrganization();
+  </script>
+</body>
+</html>

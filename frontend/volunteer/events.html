@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Volunteer Events &amp; Event Creation — CampusNexus</title>
+  <meta name="description" content="View assigned campus events, propose new events for Admin review, and manage event operations.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Events &amp; Event Proposals</h1>
+            <p class="page-subtitle">View campus operations, track registrations, or propose new events for Admin approval &amp; publication.</p>
+          </div>
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary" onclick="openCreateEventModal()">
+              + Propose New Event
+            </button>
+            <a href="/volunteer/qr-scanner.html" class="btn btn-secondary">Open Gate Scanner 📷</a>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+              <select class="form-control" id="filter-status" onchange="loadVolunteerEvents()" style="width: auto; min-width: 160px;">
+                <option value="">All Statuses</option>
+                <option value="Published">Published</option>
+                <option value="Pending Approval">Pending Approval</option>
+                <option value="Draft">Drafts</option>
+                <option value="Completed">Completed</option>
+              </select>
+              <input type="text" class="form-control" id="search-event" placeholder="Search events by name..." style="width: auto; min-width: 200px;" oninput="filterLocalEvents()">
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);" id="events-count-label"></div>
+          </div>
+        </div>
+
+        <div id="events-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Propose Event Modal -->
+  <div class="modal-overlay" id="create-event-modal">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="card-header" style="margin-bottom: 1.25rem;">
+        <h2 class="card-title">Propose New Campus Event</h2>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="closeCreateEventModal()">✕</button>
+      </div>
+
+      <form id="create-event-form" onsubmit="handleCreateEvent(event)">
+        <div class="form-group">
+          <label class="form-label" for="ev-name">Event Title *</label>
+          <input type="text" id="ev-name" class="form-control" placeholder="e.g. AI & Robotics Hackathon 2026" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="ev-category">Category *</label>
+            <select id="ev-category" class="form-control" required>
+              <option value="Workshop">Workshop</option>
+              <option value="Seminar">Seminar</option>
+              <option value="Competition">Competition</option>
+              <option value="Social">Social</option>
+              <option value="Fundraiser">Fundraiser</option>
+              <option value="Sports">Sports</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="ev-capacity">Maximum Capacity *</label>
+            <input type="number" id="ev-capacity" class="form-control" placeholder="50" min="1" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="ev-start-date">Start Date *</label>
+            <input type="date" id="ev-start-date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ev-end-date">End Date *</label>
+            <input type="date" id="ev-end-date" class="form-control" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="ev-start-time">Start Time</label>
+            <input type="time" id="ev-start-time" class="form-control" value="09:00">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ev-end-time">End Time</label>
+            <input type="time" id="ev-end-time" class="form-control" value="17:00">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="ev-venue">Venue / Location *</label>
+            <input type="text" id="ev-venue" class="form-control" placeholder="Main Auditorium / Hall B" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ev-fee">Admission Fee ($)</label>
+            <input type="number" id="ev-fee" class="form-control" placeholder="0" min="0" value="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="ev-desc">Event Description &amp; Purpose *</label>
+          <textarea id="ev-desc" class="form-control" rows="3" placeholder="Provide event agenda, objectives, and target audience..." required></textarea>
+        </div>
+
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeCreateEventModal()">Cancel</button>
+          <button type="button" class="btn btn-secondary" onclick="submitEventWithStatus('Draft')">Save as Draft 📝</button>
+          <button type="button" class="btn btn-primary" onclick="submitEventWithStatus('Pending Approval')">Submit for Admin Approval ⏳</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('VOLUNTEER', 'ADMIN');
+
+    let allLoadedEvents = [];
+
+    function openCreateEventModal() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('ev-start-date').min = today;
+      document.getElementById('ev-end-date').min = today;
+      document.getElementById('create-event-modal').classList.add('active');
+    }
+
+    function closeCreateEventModal() {
+      document.getElementById('create-event-modal').classList.remove('active');
+    }
+
+    async function loadVolunteerEvents() {
+      const container = document.getElementById('events-container');
+      utils.renderLoading(container, 'Loading campus events...');
+
+      try {
+        const status = document.getElementById('filter-status').value;
+        const params = {};
+        if (status) params.status = status;
+
+        const res = await api.get('/events', params);
+        if (!res.success) throw new Error(res.message);
+
+        allLoadedEvents = res.data.events || [];
+        renderEventsGrid(allLoadedEvents);
+      } catch (err) {
+        utils.renderError(container, err.message, loadVolunteerEvents);
+      }
+    }
+
+    function renderEventsGrid(events) {
+      const container = document.getElementById('events-container');
+      document.getElementById('events-count-label').textContent = `Showing ${events.length} event${events.length === 1 ? '' : 's'}`;
+
+      if (events.length === 0) {
+        utils.renderEmpty(container, 'No events found', 'Click "+ Propose New Event" to create and submit a proposal for Admin review.');
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+          ${events.map(e => {
+            const isDraft = (e.status || '').toLowerCase() === 'draft';
+            const isPending = (e.status || '').toLowerCase() === 'pending approval';
+            const isPublished = (e.status || '').toLowerCase() === 'published';
+            const isMyEvent = e.organizerId === auth.getUser()?.userId;
+
+            return `
+              <div class="card card-hover" style="display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                  <span class="badge badge-info">${e.category}</span>
+                  ${utils.renderBadge(e.status)}
+                </div>
+                <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">${e.eventName}</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem; flex: 1;">
+                  ${e.description && e.description.length > 90 ? e.description.substring(0, 87) + '...' : (e.description || 'No description provided.')}
+                </p>
+                <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; background: var(--bg-surface-elevated); padding: 0.75rem; border-radius: var(--radius-sm);">
+                  <div>📍 Venue: <strong>${e.venue}</strong></div>
+                  <div>📅 Date: <strong>${utils.formatDate(e.startDate)} (${e.startTime || '09:00'})</strong></div>
+                  <div>👥 Capacity: <strong>${e.registrationCount || e.registeredCount || 0} / ${e.maximumCapacity || e.capacityLimit || 0}</strong></div>
+                  ${isMyEvent ? '<div style="color: var(--primary-400); font-weight: 600;">✨ Created by You</div>' : ''}
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                  ${isDraft && isMyEvent ? `
+                    <button type="button" class="btn btn-primary btn-sm" onclick="submitDraftForApproval('${e.eventId}')">
+                      Submit for Admin Approval ⏳
+                    </button>
+                  ` : ''}
+                  ${isPending ? `
+                    <div style="font-size: 0.75rem; color: var(--accent-amber); text-align: center; padding: 0.35rem; background: rgba(245, 158, 11, 0.1); border-radius: var(--radius-sm);">
+                      ⏳ Awaiting Admin Approval &amp; Publication
+                    </div>
+                  ` : ''}
+                  <a href="/volunteer/event-details.html?id=${e.eventId}" class="btn btn-secondary btn-sm" style="width: 100%;">
+                    View Operational Details →
+                  </a>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function filterLocalEvents() {
+      const q = document.getElementById('search-event').value.trim().toLowerCase();
+      if (!q) {
+        renderEventsGrid(allLoadedEvents);
+        return;
+      }
+      const filtered = allLoadedEvents.filter(e => 
+        (e.eventName || '').toLowerCase().includes(q) || 
+        (e.venue || '').toLowerCase().includes(q) ||
+        (e.category || '').toLowerCase().includes(q)
+      );
+      renderEventsGrid(filtered);
+    }
+
+    async function submitEventWithStatus(targetStatus) {
+      const name = document.getElementById('ev-name').value.trim();
+      const category = document.getElementById('ev-category').value;
+      const capacity = document.getElementById('ev-capacity').value;
+      const startDate = document.getElementById('ev-start-date').value;
+      const endDate = document.getElementById('ev-end-date').value;
+      const startTime = document.getElementById('ev-start-time').value;
+      const endTime = document.getElementById('ev-end-time').value;
+      const venue = document.getElementById('ev-venue').value.trim();
+      const fee = document.getElementById('ev-fee').value;
+      const desc = document.getElementById('ev-desc').value.trim();
+
+      if (!name || !category || !capacity || !startDate || !endDate || !venue || !desc) {
+        utils.toast('Please fill out all required fields (*).', 'error');
+        return;
+      }
+
+      const payload = {
+        eventName: name,
+        category,
+        maximumCapacity: parseInt(capacity, 10),
+        capacityLimit: parseInt(capacity, 10),
+        startDate: new Date(startDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
+        startTime,
+        endTime,
+        venue,
+        registrationFee: Number(fee) || 0,
+        description: desc,
+        status: targetStatus
+      };
+
+      try {
+        const res = await api.post('/events', payload);
+        if (!res.success) throw new Error(res.message);
+
+        utils.toast(
+          targetStatus === 'Pending Approval'
+            ? 'Event proposal submitted for Admin approval! ⏳'
+            : 'Event proposal saved as draft! 📝',
+          'success'
+        );
+
+        closeCreateEventModal();
+        document.getElementById('create-event-form').reset();
+        loadVolunteerEvents();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function submitDraftForApproval(eventId) {
+      if (!confirm('Submit this draft event proposal to Admin for review and approval?')) return;
+      try {
+        const res = await api.put(`/events/${eventId}/submit`);
+        if (!res.success) throw new Error(res.message);
+        utils.toast('Event submitted for Admin approval! ⏳', 'success');
+        loadVolunteerEvents();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadVolunteerEvents();
+  </script>
+</body>
+</html>

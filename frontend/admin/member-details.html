@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Membership Details — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/admin/members.html" class="btn btn-secondary btn-sm">← Back to Members</a>
+        </div>
+
+        <div id="member-details-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    const params = new URLSearchParams(window.location.search);
+    const membershipId = params.get('id');
+
+    async function loadMemberDetails() {
+      const container = document.getElementById('member-details-container');
+      if (!membershipId) {
+        utils.renderError(container, 'No membership ID specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading membership file...');
+
+      try {
+        const res = await api.get(`/memberships/${membershipId}`);
+        if (!res.success || !res.data.membership) throw new Error(res.message);
+
+        const { membership, organization, user, payment } = res.data;
+
+        container.innerHTML = `
+          <div class="card" style="max-width: 800px;">
+            <div class="card-header">
+              <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">MEMBERSHIP #${membership.membershipId}</span>
+                <h1 style="font-size: 1.6rem; margin-top: 0.25rem;">${organization ? organization.name : 'Organization'} Member</h1>
+              </div>
+              ${utils.renderBadge(membership.status)}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 1.5rem;">
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Student Member</span>
+                <div style="font-weight: 700; color: var(--text-primary); margin-top: 0.2rem;">
+                  👤 ${user ? user.name : membership.userId}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">${user ? user.email : ''}</div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Membership Type</span>
+                <div style="font-weight: 700; color: var(--accent-cyan); margin-top: 0.2rem;">
+                  ${membership.membershipType} Tier
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Effective Duration</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">
+                  📅 ${utils.formatDate(membership.startDate)} – ${utils.formatDate(membership.endDate)}
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Annual Dues</span>
+                <div style="font-weight: 700; font-size: 1.15rem; color: var(--text-primary); margin-top: 0.2rem;">
+                  ${utils.formatCurrency(membership.feeAmount)}
+                </div>
+              </div>
+            </div>
+
+            <h3 style="font-size: 1.1rem; margin-bottom: 0.75rem;">Associated Payment Record</h3>
+            ${payment ? `
+              <div style="background: var(--bg-surface-elevated); padding: 1rem; border-radius: var(--radius-md); font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <strong>Payment Reference:</strong> <span style="font-family: monospace;">${payment.transactionRef}</span>
+                  <div style="font-size: 0.8rem; color: var(--text-muted);">Method: ${payment.paymentMethod} • Date: ${utils.formatDateTime(payment.paidAt || payment.createdAt)}</div>
+                </div>
+                <div>${utils.renderBadge(payment.status)}</div>
+              </div>
+            ` : `
+              <p style="color: var(--text-muted); font-size: 0.9rem;">No payment record required or dues not yet paid.</p>
+            `}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadMemberDetails);
+      }
+    }
+
+    loadMemberDetails();
+  </script>
+</body>
+</html>

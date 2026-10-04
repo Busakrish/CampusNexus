@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Details — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/volunteer/tasks.html" class="btn btn-secondary btn-sm">← Back to Tasks</a>
+        </div>
+
+        <div id="task-details-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('VOLUNTEER', 'ADMIN', 'ORGANIZER');
+
+    const params = new URLSearchParams(window.location.search);
+    const taskId = params.get('id');
+
+    async function loadTaskDetails() {
+      const container = document.getElementById('task-details-container');
+      if (!taskId) {
+        utils.renderError(container, 'No task ID specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading task details...');
+
+      try {
+        const res = await api.get(`/tasks/${taskId}`);
+        if (!res.success || !res.data.task) throw new Error(res.message);
+
+        const { task, volunteer } = res.data;
+
+        container.innerHTML = `
+          <div class="card" style="max-width: 800px;">
+            <div class="card-header">
+              <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">TASK #${task.taskId}</span>
+                <h1 style="font-size: 1.6rem; margin-top: 0.25rem;">${task.title}</h1>
+              </div>
+              ${utils.renderBadge(task.status)}
+            </div>
+
+            <div style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 2rem;">
+              <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">Instructions</h4>
+              <p>${task.description || 'No detailed instructions provided.'}</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 2rem;">
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Due Date</span>
+                <div style="font-weight: 700; color: var(--text-primary); margin-top: 0.2rem;">
+                  📅 ${utils.formatDate(task.dueDate)}
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Allocated Spending Limit</span>
+                <div style="font-weight: 700; color: var(--accent-cyan); margin-top: 0.2rem;">
+                  💰 ${task.spendingLimit > 0 ? utils.formatCurrency(task.spendingLimit) : '$0.00 (No budget authorized)'}
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Assigned Volunteer</span>
+                <div style="font-weight: 700; color: var(--text-primary); margin-top: 0.2rem;">
+                  👤 ${volunteer ? volunteer.name : task.assignedVolunteerId}
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Completion Timestamp</span>
+                <div style="font-weight: 700; color: var(--text-primary); margin-top: 0.2rem;">
+                  ${task.completedAt ? utils.formatDateTime(task.completedAt) : 'Not completed yet'}
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+              ${task.status === 'Pending' ? `
+                <button class="btn btn-primary" onclick="updateTaskStatus('In Progress')">Mark In Progress</button>
+              ` : ''}
+              ${task.status === 'In Progress' ? `
+                <button class="btn btn-success" onclick="updateTaskStatus('Completed')">Mark Completed ✓</button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadTaskDetails);
+      }
+    }
+
+    async function updateTaskStatus(status) {
+      try {
+        await api.put(`/tasks/${taskId}/status`, { status });
+        utils.toast(`Task status marked as ${status}`, 'success');
+        loadTaskDetails();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadTaskDetails();
+  </script>
+</body>
+</html>

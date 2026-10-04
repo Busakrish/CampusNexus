@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orders Fulfillment — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Merchandise Orders Fulfillment</h1>
+            <p class="page-subtitle">Track incoming student purchases, manage packaging, and mark orders ready for pickup.</p>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="status-filter" class="form-control" style="width: auto;">
+              <option value="">All Fulfillment Statuses</option>
+              <option value="Pending/Confirmed">Pending / Confirmed</option>
+              <option value="Preparing">Preparing</option>
+              <option value="Ready">Ready for Pickup</option>
+              <option value="Delivered/Picked Up">Delivered / Picked Up</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="orders-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN', 'ORGANIZER');
+
+    async function loadOrders() {
+      const container = document.getElementById('orders-table-container');
+      utils.renderLoading(container, 'Loading orders...');
+
+      const status = document.getElementById('status-filter').value;
+
+      try {
+        const res = await api.get('/orders', { status });
+        if (!res.success || !res.data.orders || res.data.orders.length === 0) {
+          utils.renderEmpty(container, 'No orders found');
+          return;
+        }
+
+        const orders = res.data.orders;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer (User ID)</th>
+                  <th>Purchased Items</th>
+                  <th>Total Amount</th>
+                  <th>Placed On</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${orders.map(o => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${o.orderId}</strong></td>
+                    <td><code>${o.userId}</code></td>
+                    <td>${o.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}</td>
+                    <td><strong style="color: var(--text-primary);">${utils.formatCurrency(o.totalAmount)}</strong></td>
+                    <td>${utils.formatDate(o.createdAt)}</td>
+                    <td>${utils.renderBadge(o.status)}</td>
+                    <td>
+                      <div class="table-actions">
+                        <a href="/admin/order-details.html?id=${o.orderId}" class="btn btn-secondary btn-sm">Details</a>
+                        <select onchange="changeOrderStatus('${o.orderId}', this.value)" class="form-control" style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                          <option value="">Update Status...</option>
+                          <option value="Preparing">Mark Preparing</option>
+                          <option value="Ready">Mark Ready</option>
+                          <option value="Delivered/Picked Up">Mark Delivered</option>
+                          <option value="Cancelled">Cancel Order</option>
+                        </select>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadOrders);
+      }
+    }
+
+    async function changeOrderStatus(orderId, status) {
+      if (!status) return;
+      try {
+        await api.put(`/orders/${orderId}/status`, { status });
+        utils.toast(`Order #${orderId} marked as ${status}`, 'success');
+        loadOrders();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    document.getElementById('status-filter').addEventListener('change', loadOrders);
+
+    loadOrders();
+  </script>
+</body>
+</html>

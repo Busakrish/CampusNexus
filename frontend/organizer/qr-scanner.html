@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Ticket Scanner — CampusNexus Organizer</title>
+  <meta name="description" content="Organizer QR gate check-in: verify student ticket QR codes for real-time event admission and attendance tracking.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+  <script src="/js/libs/jsqr.min.js"></script>
+  <style>
+    .scanner-viewport {
+      position: relative;
+      width: 100%;
+      height: 290px;
+      background: #000;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+      border: 2px solid var(--border-subtle);
+    }
+    .scanner-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .scanner-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .scanner-target-box {
+      width: 210px;
+      height: 210px;
+      border: 3px solid var(--accent-cyan);
+      border-radius: 16px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+      position: relative;
+    }
+    .scanner-target-box::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px var(--accent-cyan);
+      animation: scanLaser 2s ease-in-out infinite;
+    }
+    @keyframes scanLaser {
+      0%, 100% { top: 5%; opacity: 0.4; }
+      50% { top: 95%; opacity: 1; }
+    }
+    .scanner-placeholder {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #9CA3AF;
+      gap: 0.5rem;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .scanner-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .scanner-tab-btn {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface-elevated);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+    .scanner-tab-btn.active {
+      background: var(--primary-600);
+      color: #fff;
+      border-color: var(--primary-600);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Event Gate QR Ticket Check-In</h1>
+            <p class="page-subtitle">Scan student ticket QR codes using your camera, upload a QR image/screenshot, or test active tickets for instant admission verification.</p>
+          </div>
+          <a href="/organizer/attendance.html" class="btn btn-secondary">✅ Live Attendance</a>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 1100px;">
+          
+          <!-- Scanner & Input Box -->
+          <div class="card">
+            
+            <div class="scanner-tabs">
+              <button type="button" class="scanner-tab-btn active" id="tab-camera" onclick="switchTab('camera')">📷 Live Camera Scanner</button>
+              <button type="button" class="scanner-tab-btn" id="tab-file" onclick="switchTab('file')">📁 Upload / Drag QR Image</button>
+            </div>
+
+            <!-- 1. Live Camera Mode -->
+            <div id="camera-section">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.5rem;">
+                <select id="camera-device-select" class="form-control" style="font-size: 0.8rem; padding: 0.35rem 0.5rem; height: auto; max-width: 200px; display: none;" onchange="switchCameraDevice(this.value)">
+                </select>
+                <button type="button" class="btn btn-primary btn-sm" id="camera-toggle-btn" onclick="toggleCamera()" style="margin-left: auto;">
+                  📷 Start Camera
+                </button>
+              </div>
+
+              <div class="scanner-viewport" id="viewport-box">
+                <video id="scanner-video" class="scanner-video" autoplay playsinline muted style="display: none;"></video>
+                <div class="scanner-overlay" id="scanner-overlay" style="display: none;">
+                  <div class="scanner-target-box"></div>
+                </div>
+                <div class="scanner-placeholder" id="camera-placeholder">
+                  <div style="font-size: 2.8rem; opacity: 0.8;">📷</div>
+                  <div style="font-size: 0.95rem; font-weight: 600;" id="camera-status-title">Camera is currently off</div>
+                  <div style="font-size: 0.8rem; color: #9CA3AF; max-width: 320px;" id="camera-status-desc">Click "Start Camera" to scan QR tickets live with your webcam</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. File Upload Mode -->
+            <div id="file-section" style="display: none; margin-bottom: 1.25rem;">
+              <div style="border: 2px dashed var(--border-subtle); border-radius: var(--radius-md); padding: 2rem 1.5rem; text-align: center; background: var(--bg-surface-elevated); cursor: pointer;" onclick="document.getElementById('qr-file-input').click()">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🖼️</div>
+                <div style="font-weight: 600; margin-bottom: 0.25rem;">Click to Upload or Drag QR Screenshot</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Supports PNG, JPG, JPEG QR code images</div>
+                <input type="file" id="qr-file-input" accept="image/*" style="display: none;" onchange="handleFileUpload(event)">
+              </div>
+            </div>
+
+            <!-- Manual Ticket Form -->
+            <form id="scan-form">
+              <div class="form-group">
+                <label class="form-label" for="qr-input">QR Raw Data / Ticket ID (Manual Fallback)</label>
+                <input type="text" id="qr-input" class="form-control" placeholder='e.g. TKT-1001 or {"ticketId":"TKT-..."}' autofocus required>
+                <div class="form-help">Scanned camera codes or pasted ticket IDs populate here.</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="event-select">Filter by Specific Event (Optional)</label>
+                <select id="event-select" class="form-control" onchange="loadEventTickets()">
+                  <option value="">Any Active Event</option>
+                </select>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;" id="checkin-btn">
+                Verify &amp; Check-In Ticket ✓
+              </button>
+            </form>
+
+            <!-- Quick Passes -->
+            <div style="margin-top: 1.25rem; border-top: 1px solid var(--border-subtle); padding-top: 0.75rem;">
+              <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Quick Test Active Passes:</span>
+              <div id="quick-passes-container" style="display: flex; gap: 0.5rem; margin-top: 0.4rem; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickCode('TKT-1001')">#TKT-1001</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Result & Attendance Feedback Box -->
+          <div class="card" id="result-box" style="display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 360px;">
+            <div style="font-size: 3.5rem; opacity: 0.5; margin-bottom: 1rem;">🎟️</div>
+            <h3 style="color: var(--text-secondary); font-size: 1.1rem;">Ready for Next Ticket</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 280px; margin-top: 0.25rem;">
+              Position ticket under camera, upload image, or enter code to verify admittance.
+            </p>
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script src="/js/qr-scanner.js"></script>
+  <script>
+    auth.requireRole('ORGANIZER', 'VOLUNTEER', 'ADMIN');
+
+    let qrScanner = null;
+    let cameraActive = false;
+    let selectedDeviceId = null;
+
+    function initScanner() {
+      const video = document.getElementById('scanner-video');
+      qrScanner = new CampusQRScanner(
+        video,
+        null,
+        (detectedText) => {
+          document.getElementById('qr-input').value = detectedText;
+          processCheckIn(detectedText);
+        },
+        (err) => {
+          handleCameraError(err);
+        }
+      );
+    }
+
+    async function populateCameras() {
+      if (!qrScanner) initScanner();
+      const cameras = await qrScanner.getAvailableCameras();
+      const select = document.getElementById('camera-device-select');
+      if (cameras && cameras.length > 1) {
+        select.innerHTML = cameras.map((c, i) => `<option value="${c.deviceId}">${c.label || 'Camera ' + (i + 1)}</option>`).join('');
+        select.style.display = 'inline-block';
+      }
+    }
+
+    function switchCameraDevice(deviceId) {
+      selectedDeviceId = deviceId;
+      if (cameraActive) {
+        toggleCamera(); // stop
+        setTimeout(() => toggleCamera(), 200); // restart
+      }
+    }
+
+    function switchTab(mode) {
+      document.getElementById('tab-camera').className = mode === 'camera' ? 'scanner-tab-btn active' : 'scanner-tab-btn';
+      document.getElementById('tab-file').className = mode === 'file' ? 'scanner-tab-btn active' : 'scanner-tab-btn';
+      document.getElementById('camera-section').style.display = mode === 'camera' ? 'block' : 'none';
+      document.getElementById('file-section').style.display = mode === 'file' ? 'block' : 'none';
+      if (mode === 'file' && cameraActive) {
+        stopCameraUI();
+      }
+    }
+
+    async function toggleCamera() {
+      if (!qrScanner) initScanner();
+
+      if (!cameraActive) {
+        try {
+          const btn = document.getElementById('camera-toggle-btn');
+          btn.disabled = true;
+          btn.textContent = 'Starting...';
+
+          await qrScanner.startCamera(selectedDeviceId);
+          cameraActive = true;
+          document.getElementById('scanner-video').style.display = 'block';
+          document.getElementById('scanner-overlay').style.display = 'flex';
+          document.getElementById('camera-placeholder').style.display = 'none';
+          btn.textContent = '⏹ Stop Camera';
+          btn.className = 'btn btn-danger btn-sm';
+          btn.disabled = false;
+          populateCameras();
+          utils.toast('Camera activated. Align QR code in viewfinder.', 'info');
+        } catch (e) {
+          handleCameraError(e);
+        }
+      } else {
+        stopCameraUI();
+      }
+    }
+
+    function handleCameraError(err) {
+      stopCameraUI();
+      const titleEl = document.getElementById('camera-status-title');
+      const descEl = document.getElementById('camera-status-desc');
+      if (titleEl && descEl) {
+        titleEl.textContent = 'Camera Access Issue';
+        titleEl.style.color = 'var(--accent-rose)';
+        descEl.innerHTML = `
+          <div style="color: var(--text-primary); margin-bottom: 0.5rem;">${err.message || 'Unable to access camera.'}</div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="switchTab('file')" style="margin-top: 0.25rem;">
+            📁 Switch to Image Upload
+          </button>
+        `;
+      }
+      utils.toast(err.message, 'error');
+    }
+
+    function stopCameraUI() {
+      if (qrScanner) qrScanner.stopCamera();
+      cameraActive = false;
+      document.getElementById('scanner-video').style.display = 'none';
+      document.getElementById('scanner-overlay').style.display = 'none';
+      document.getElementById('camera-placeholder').style.display = 'flex';
+      const btn = document.getElementById('camera-toggle-btn');
+      btn.textContent = '📷 Start Camera';
+      btn.className = 'btn btn-primary btn-sm';
+      btn.disabled = false;
+    }
+
+    async function handleFileUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (!qrScanner) initScanner();
+
+      try {
+        utils.toast('Processing QR image...', 'info');
+        const detectedText = await qrScanner.scanImageFile(file);
+        document.getElementById('qr-input').value = detectedText;
+        processCheckIn(detectedText);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      } finally {
+        event.target.value = '';
+      }
+    }
+
+    function setQuickCode(code) {
+      document.getElementById('qr-input').value = code;
+      processCheckIn(code);
+    }
+
+    async function loadEventsList() {
+      try {
+        const res = await api.get('/events', { status: 'Published' });
+        if (res.success && res.data.events) {
+          const select = document.getElementById('event-select');
+          res.data.events.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.eventId;
+            opt.textContent = `${e.eventName} (${utils.formatDate(e.startDate)})`;
+            select.appendChild(opt);
+          });
+        }
+        loadEventTickets();
+      } catch (e) {}
+    }
+
+    async function loadEventTickets() {
+      try {
+        const eventId = document.getElementById('event-select').value;
+        const params = {};
+        if (eventId) params.eventId = eventId;
+        const res = await api.get('/tickets', params);
+        if (res.success && res.data.tickets) {
+          const container = document.getElementById('quick-passes-container');
+          if (res.data.tickets.length === 0) {
+            container.innerHTML = '<span style="font-size:0.8rem; color:var(--text-muted);">No tickets issued yet.</span>';
+            return;
+          }
+          container.innerHTML = res.data.tickets.slice(0, 6).map(t => `
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setQuickCode('${t.qrData ? t.qrData.replace(/'/g, "\\'") : t.ticketId}')">
+              #${t.ticketId} (${t.status})
+            </button>
+          `).join('');
+        }
+      } catch (e) {}
+    }
+
+    async function processCheckIn(qrData) {
+      if (!qrData) return;
+      const eventId = document.getElementById('event-select').value;
+      const resultBox = document.getElementById('result-box');
+      const btn = document.getElementById('checkin-btn');
+
+      btn.disabled = true;
+      btn.textContent = 'Verifying Ticket...';
+
+      try {
+        const res = await api.post('/tickets/check-in', { qrData, eventId });
+        if (!res.success) throw new Error(res.message);
+
+        const { ticket, event, student, attendance } = res.data;
+
+        resultBox.innerHTML = `
+          <div style="width: 100%; text-align: left;">
+            <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 1.5rem;">
+              <div style="font-size: 2.5rem; color: var(--accent-emerald); margin-bottom: 0.25rem;">✓</div>
+              <h2 style="color: var(--accent-emerald); font-size: 1.4rem;">CHECK-IN VERIFIED</h2>
+              <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                Admitted on ${new Date(attendance.checkInTime).toLocaleTimeString()}
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.95rem; background: var(--bg-surface-elevated); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+              <div><strong>Student:</strong> ${student ? student.name : 'Verified Attendee'} (${student ? student.studentNumber || '' : ''})</div>
+              <div><strong>Event:</strong> ${event ? event.eventName : 'Event'}</div>
+              <div><strong>Ticket Pass:</strong> <span style="font-family: monospace;">#${ticket.ticketId}</span></div>
+              <div><strong>Ticket Type:</strong> ${ticket.ticketType}</div>
+            </div>
+          </div>
+        `;
+        utils.toast('Check-in successful! Attendee admitted.', 'success');
+        document.getElementById('qr-input').value = '';
+        loadEventTickets();
+      } catch (err) {
+        resultBox.innerHTML = `
+          <div style="width: 100%; text-align: left;">
+            <div style="background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.3); padding: 1.25rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 1.25rem;">
+              <div style="font-size: 2.5rem; color: var(--accent-rose); margin-bottom: 0.25rem;">✕</div>
+              <h2 style="color: var(--accent-rose); font-size: 1.4rem;">CHECK-IN REJECTED</h2>
+              <div style="font-size: 0.9rem; color: var(--text-primary); margin-top: 0.5rem; font-weight: 600;">
+                ${err.message}
+              </div>
+            </div>
+          </div>
+        `;
+        utils.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Verify & Check-In Ticket ✓';
+      }
+    }
+
+    document.getElementById('scan-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const qrData = document.getElementById('qr-input').value.trim();
+      processCheckIn(qrData);
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (qrScanner) qrScanner.stopCamera();
+    });
+
+    loadEventsList();
+  </script>
+</body>
+</html>

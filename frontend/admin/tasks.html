@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Assignments — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Volunteer Task Assignments</h1>
+            <p class="page-subtitle">Create, assign, and oversee operations and task budgets across events and campaigns.</p>
+          </div>
+          <a href="/admin/task-form.html" class="btn btn-primary">+ Assign New Task</a>
+        </div>
+
+        <div class="card">
+          <div id="tasks-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    async function loadTasks() {
+      const container = document.getElementById('tasks-table-container');
+      utils.renderLoading(container, 'Loading all tasks...');
+
+      try {
+        const res = await api.get('/tasks');
+        if (!res.success || !res.data.tasks || res.data.tasks.length === 0) {
+          utils.renderEmpty(container, 'No tasks created yet');
+          return;
+        }
+
+        const tasks = res.data.tasks;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Task ID</th>
+                  <th>Title</th>
+                  <th>Assigned Volunteer</th>
+                  <th>Due Date</th>
+                  <th>Spending Limit</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tasks.map(t => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${t.taskId}</strong></td>
+                    <td>
+                      <strong>${t.title}</strong>
+                      <div style="font-size: 0.8rem; color: var(--text-secondary);">${t.description}</div>
+                    </td>
+                    <td>👤 ${t.volunteer ? t.volunteer.name : t.assignedVolunteerId}</td>
+                    <td>${utils.formatDate(t.dueDate)}</td>
+                    <td>${t.spendingLimit > 0 ? utils.formatCurrency(t.spendingLimit) : '$0'}</td>
+                    <td>${utils.renderBadge(t.status)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadTasks);
+      }
+    }
+
+    loadTasks();
+  </script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Volunteers Roster — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Campus Volunteer Roster</h1>
+            <p class="page-subtitle">Track active volunteers, contact directories, and task workloads.</p>
+          </div>
+          <a href="/admin/task-form.html" class="btn btn-primary">+ Assign Volunteer Task</a>
+        </div>
+
+        <div class="card">
+          <div id="volunteers-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    async function loadVolunteers() {
+      const container = document.getElementById('volunteers-table-container');
+      utils.renderLoading(container, 'Loading volunteer directory...');
+
+      try {
+        const res = await api.get('/users/volunteers');
+        if (!res.success || !res.data.volunteers || res.data.volunteers.length === 0) {
+          utils.renderEmpty(container, 'No volunteers found');
+          return;
+        }
+
+        const volunteers = res.data.volunteers;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Volunteer Name</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${volunteers.map(v => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${v.userId}</strong></td>
+                    <td><strong>${v.name}</strong></td>
+                    <td>${v.email}</td>
+                    <td>${v.phone || 'N/A'}</td>
+                    <td>
+                      <a href="/admin/volunteer-details.html?id=${v.userId}" class="btn btn-secondary btn-sm">View Workload</a>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadVolunteers);
+      }
+    }
+
+    loadVolunteers();
+  </script>
+</body>
+</html>

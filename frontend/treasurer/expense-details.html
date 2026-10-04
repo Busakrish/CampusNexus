@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Audit & Verification — CampusNexus Treasurer</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/treasurer/expenses.html" class="btn btn-secondary btn-sm">← Back to Expenses</a>
+        </div>
+
+        <div id="expense-audit-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+
+    const params = new URLSearchParams(window.location.search);
+    const expenseId = params.get('id');
+
+    async function loadExpenseAudit() {
+      const container = document.getElementById('expense-audit-container');
+      if (!expenseId) {
+        utils.renderError(container, 'No expense ID specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading claim documentation...');
+
+      try {
+        const res = await api.get(`/expenses/${expenseId}`);
+        if (!res.success || !res.data.expense) throw new Error(res.message);
+
+        const { expense, submitter, reimbursement } = res.data;
+
+        container.innerHTML = `
+          <div class="card" style="max-width: 800px;">
+            <div class="card-header">
+              <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">CLAIM #${expense.expenseId}</span>
+                <h1 style="font-size: 1.6rem; margin-top: 0.25rem;">Expense Audit Review</h1>
+              </div>
+              ${utils.renderBadge(expense.status)}
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 1.5rem;">
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Claimed Amount</span>
+                <div style="font-size: 1.4rem; font-weight: 800; color: var(--primary); margin-top: 0.2rem;">
+                  ${utils.formatCurrency(expense.amount)}
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Category</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">${expense.category}</div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Submitted By</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">👤 ${submitter ? submitter.name : expense.submittedBy}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">${submitter ? submitter.email : ''}</div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Submission Date</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">📅 ${utils.formatDateTime(expense.createdAt)}</div>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+              <h4 style="margin-bottom: 0.4rem; font-size: 1rem;">Claim Memo & Purpose</h4>
+              <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">${expense.description}</p>
+            </div>
+
+            ${expense.receiptUrl ? `
+              <div style="margin-bottom: 1.75rem;">
+                <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Attached Receipt Documentation</h4>
+                <img src="${expense.receiptUrl}" alt="Receipt" style="max-width: 100%; max-height: 380px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+              </div>
+            ` : ''}
+
+            ${expense.status === 'Pending' ? `
+              <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--border-subtle); padding-top: 1.25rem;">
+                <button class="btn btn-danger" onclick="rejectExpensePrompt()">Reject Claim ✕</button>
+                <button class="btn btn-success" onclick="approveExpenseAction()">Approve & Authorize Reimbursement ✓</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadExpenseAudit);
+      }
+    }
+
+    async function approveExpenseAction() {
+      try {
+        await api.put(`/expenses/${expenseId}/approve`);
+        utils.toast('Expense approved! Reimbursement generated in disbursement queue.', 'success');
+        loadExpenseAudit();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function rejectExpensePrompt() {
+      const reason = prompt('Please enter the audit reason for rejecting this claim:');
+      if (!reason) return;
+
+      try {
+        await api.put(`/expenses/${expenseId}/reject`, { reason });
+        utils.toast('Expense rejected with audit feedback.', 'info');
+        loadExpenseAudit();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadExpenseAudit();
+  </script>
+</body>
+</html>

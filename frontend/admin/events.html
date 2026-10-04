@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Governance & Approvals — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Campus Events Governance</h1>
+            <p class="page-subtitle">Review event proposals submitted by organizers, approve/reject dates, and publish schedules.</p>
+          </div>
+          <a href="/admin/event-form.html" class="btn btn-primary">+ Create Institutional Event</a>
+        </div>
+
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="status-filter" class="form-control" style="width: auto;">
+              <option value="">All Statuses</option>
+              <option value="Pending Approval">Pending Approval ⏳</option>
+              <option value="Approved">Approved ✓</option>
+              <option value="Published">Published 📢</option>
+              <option value="Draft">Draft</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="events-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    async function loadEvents() {
+      const container = document.getElementById('events-table-container');
+      utils.renderLoading(container, 'Loading event records...');
+
+      const status = document.getElementById('status-filter').value;
+
+      try {
+        const res = await api.get('/events', { status });
+        if (!res.success || !res.data.events || res.data.events.length === 0) {
+          utils.renderEmpty(container, 'No events found');
+          return;
+        }
+
+        const events = res.data.events;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Event ID</th>
+                  <th>Title & Organization</th>
+                  <th>Category</th>
+                  <th>Dates & Venue</th>
+                  <th>Capacity</th>
+                  <th>Fee</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${events.map(e => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${e.eventId}</strong></td>
+                    <td>
+                      <strong>${e.eventName}</strong>
+                      <div style="font-size: 0.8rem; color: var(--text-muted);">${e.organization ? e.organization.name : e.organizationId}</div>
+                    </td>
+                    <td>${e.category}</td>
+                    <td>
+                      <div>📅 ${utils.formatDate(e.startDate)} (${e.startTime})</div>
+                      <div style="font-size: 0.8rem; color: var(--text-secondary);">📍 ${e.venue}</div>
+                    </td>
+                    <td><strong>${e.registrationCount} / ${e.maximumCapacity}</strong></td>
+                    <td><strong>${e.registrationFee > 0 ? utils.formatCurrency(e.registrationFee) : 'Free'}</strong></td>
+                    <td>${utils.renderBadge(e.status)}</td>
+                    <td>
+                      <div class="table-actions">
+                        <a href="/admin/event-details.html?id=${e.eventId}" class="btn btn-secondary btn-sm">Review</a>
+                        ${e.status === 'Pending Approval' ? `
+                          <button class="btn btn-primary btn-sm" onclick="approveAndPublishEvent('${e.eventId}')">Approve &amp; Publish 📢</button>
+                          <button class="btn btn-secondary btn-sm" onclick="approveEvent('${e.eventId}')">Approve Only ✓</button>
+                        ` : ''}
+                        ${e.status === 'Approved' ? `
+                          <button class="btn btn-primary btn-sm" onclick="publishEvent('${e.eventId}')">Publish 📢</button>
+                        ` : ''}
+                        ${e.status === 'Draft' ? `
+                          <button class="btn btn-primary btn-sm" onclick="publishEvent('${e.eventId}')">Publish 📢</button>
+                        ` : ''}
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadEvents);
+      }
+    }
+
+    async function approveAndPublishEvent(eventId) {
+      try {
+        await api.put(`/events/${eventId}/approve`, { autoPublish: true });
+        utils.toast('Event approved and published to students!', 'success');
+        loadEvents();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function approveEvent(eventId) {
+      try {
+        await api.put(`/events/${eventId}/approve`, { autoPublish: false });
+        utils.toast('Event approved successfully!', 'success');
+        loadEvents();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function publishEvent(eventId) {
+      try {
+        await api.put(`/events/${eventId}/publish`);
+        utils.toast('Event published to students!', 'success');
+        loadEvents();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    document.getElementById('status-filter').addEventListener('change', loadEvents);
+
+    loadEvents();
+  </script>
+</body>
+</html>

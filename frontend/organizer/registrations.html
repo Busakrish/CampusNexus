@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrations — CampusNexus Organizer</title>
+  <meta name="description" content="View and manage all student event registrations. Approve, confirm, or cancel registration requests.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Event Registrations</h1>
+            <p class="page-subtitle">Manage all registration requests across your organization's events.</p>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+            <select class="form-control" id="filter-status" style="width: auto; min-width: 150px;">
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="waitlisted">Waitlisted</option>
+            </select>
+            <select class="form-control" id="filter-payment" style="width: auto; min-width: 150px;">
+              <option value="">All Payments</option>
+              <option value="pending">Payment Pending</option>
+              <option value="paid">Paid</option>
+              <option value="waived">Waived</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadRegistrations()">Apply Filters</button>
+          </div>
+        </div>
+
+        <div id="registrations-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ORGANIZER', 'ADMIN');
+
+    async function loadRegistrations() {
+      const container = document.getElementById('registrations-container');
+      utils.renderLoading(container);
+      try {
+        const status = document.getElementById('filter-status').value;
+        const payment = document.getElementById('filter-payment').value;
+        const params = {};
+        if (status) params.status = status;
+        if (payment) params.paymentStatus = payment;
+
+        const res = await api.get('/registrations', params);
+        if (!res.success) throw new Error(res.message);
+        const regs = res.data.registrations || [];
+
+        if (regs.length === 0) {
+          utils.renderEmpty(container, 'No registrations found', 'No registrations match your filter criteria.');
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Registration ID</th>
+                    <th>Student</th>
+                    <th>Event</th>
+                    <th>Registered On</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${regs.map(r => {
+                    const st = (r.status || '').toLowerCase();
+                    return `
+                    <tr>
+                      <td><strong style="font-family:monospace; font-size:0.8rem;">#${r.registrationId}</strong></td>
+                      <td>
+                        <div style="font-weight:600;">${r.user ? r.user.name : r.userId}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${r.user ? r.user.email : ''}</div>
+                      </td>
+                      <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        ${r.event ? r.event.eventName : r.eventId}
+                      </td>
+                      <td>${utils.formatDate(r.createdAt)}</td>
+                      <td>${utils.renderBadge(r.paymentStatus || 'pending')}</td>
+                      <td>${utils.renderBadge(r.status)}</td>
+                      <td>
+                        <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+                          ${st === 'pending' ? `
+                            <button class="btn btn-success btn-sm" onclick="setStatus('${r.registrationId}','Confirmed')">✓ Confirm</button>
+                            <button class="btn btn-danger btn-sm" onclick="setStatus('${r.registrationId}','Cancelled')">✕</button>
+                          ` : ''}
+                          ${st === 'confirmed' ? `<button class="btn btn-danger btn-sm" onclick="setStatus('${r.registrationId}','Cancelled')">Cancel</button>` : ''}
+                          ${st === 'waitlisted' ? `<button class="btn btn-primary btn-sm" onclick="setStatus('${r.registrationId}','Confirmed')">Promote</button>` : ''}
+                        </div>
+                      </td>
+                    </tr>
+                  `}).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message);
+      }
+    }
+
+    async function setStatus(registrationId, status) {
+      const action = { confirmed: 'Confirm', cancelled: 'Cancel' }[status] || status;
+      if (!confirm(`${action} this registration?`)) return;
+      try {
+        const res = await api.put(`/registrations/${registrationId}/status`, { status });
+        if (res.success) { utils.toast(`Registration ${status}.`, 'success'); loadRegistrations(); }
+        else throw new Error(res.message);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadRegistrations();
+  </script>
+</body>
+</html>

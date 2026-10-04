@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — CampusNexus</title>
+  <meta name="description" content="Secure unified campus authentication portal for CampusNexus student organizations, events, and activities.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/auth.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+  <style>
+    .auth-error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      margin-bottom: 1.25rem;
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+    }
+  </style>
+</head>
+<body class="auth-page">
+
+  <div class="auth-card" style="max-width: 460px;">
+    <div class="auth-header">
+      <div class="brand-badge">
+        <span style="color: var(--accent-cyan);">❖</span> Campus<span>Nexus</span>
+      </div>
+      <p class="auth-subtitle">Unified Student Organization &amp; Event Portal</p>
+    </div>
+
+    <!-- Error Alert Box -->
+    <div id="login-error-alert" class="auth-error-box">
+      <span>⚠️</span>
+      <span id="login-error-text">Invalid email or password</span>
+    </div>
+
+    <!-- Direct Email + Password Form -->
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label" for="email">Campus Email Address</label>
+        <input 
+          type="email" 
+          id="email" 
+          class="form-control" 
+          placeholder="your-email@campus.edu" 
+          required 
+          autocomplete="email" 
+          autofocus
+        >
+      </div>
+
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label class="form-label" for="password" style="margin-bottom: 0;">Password</label>
+          <button type="button" onclick="togglePasswordVisibility()" style="background:none; border:none; color:var(--text-muted); font-size:0.75rem; cursor:pointer;" id="toggle-pwd-btn">
+            👁️ Show
+          </button>
+        </div>
+        <input 
+          type="password" 
+          id="password" 
+          class="form-control" 
+          placeholder="••••••••" 
+          required 
+          autocomplete="current-password" 
+          style="margin-top: 0.35rem;"
+        >
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.75rem;" id="login-btn">
+        Sign In to Portal →
+      </button>
+    </form>
+
+    <div class="auth-footer" style="margin-top: 1.5rem; border-top: 1px solid var(--border-light); padding-top: 1.25rem;">
+      New student? <a href="/register.html" style="font-weight: 700; color: var(--primary);">Create an account</a>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script>
+    function togglePasswordVisibility() {
+      const pwdInput = document.getElementById('password');
+      const toggleBtn = document.getElementById('toggle-pwd-btn');
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        toggleBtn.textContent = '🙈 Hide';
+      } else {
+        pwdInput.type = 'password';
+        toggleBtn.textContent = '👁️ Show';
+      }
+    }
+
+    function showError(msg) {
+      const alertBox = document.getElementById('login-error-alert');
+      const errorText = document.getElementById('login-error-text');
+      errorText.textContent = msg;
+      alertBox.style.display = 'flex';
+    }
+
+    function hideError() {
+      document.getElementById('login-error-alert').style.display = 'none';
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      hideError();
+
+      const btn = document.getElementById('login-btn');
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) {
+        showError('Please provide both email and password.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-sm"></span> Signing In...';
+
+      try {
+        const data = await auth.login(email, password);
+        const user = data.user;
+        const redirectUrl = auth.getRoleDashboardUrl(user.role);
+        
+        utils.toast(`Welcome back, ${user.name}!`, 'success');
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 350);
+      } catch (err) {
+        showError(err.message || 'Invalid email or password.');
+        btn.disabled = false;
+        btn.innerHTML = 'Sign In to Portal →';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Registration — CampusNexus</title>
+  <meta name="description" content="Register for CampusNexus student organization portal with verified campus email address.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/auth.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+  <style>
+    .auth-error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      margin-bottom: 1.25rem;
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .auth-success-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      margin-bottom: 1.25rem;
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+    }
+  </style>
+</head>
+<body class="auth-page">
+
+  <div class="auth-card" style="max-width: 540px;">
+    <div class="auth-header">
+      <div class="brand-badge">
+        <span style="color: var(--accent-cyan);">❖</span> Campus<span>Nexus</span>
+      </div>
+      <p class="auth-subtitle" id="form-subtitle">Create your verified student account</p>
+    </div>
+
+    <!-- Feedback messages -->
+    <div id="reg-error-alert" class="auth-error-box">
+      <span>⚠️</span>
+      <span id="reg-error-text"></span>
+    </div>
+    <div id="reg-success-alert" class="auth-success-box">
+      <span>✓</span>
+      <span id="reg-success-text"></span>
+    </div>
+
+    <!-- STEP 1: Registration Form -->
+    <div id="step-registration">
+      <form id="register-form" onsubmit="handleInitiateRegister(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="name">Full Name *</label>
+            <input type="text" id="name" class="form-control" placeholder="Jane Doe" required autofocus>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="email">Campus Email *</label>
+            <input type="email" id="email" class="form-control" placeholder="jane@campus.edu" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="studentNumber">Student ID / Roll No</label>
+            <input type="text" id="studentNumber" class="form-control" placeholder="CS-2026-101">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="phone">Phone Number</label>
+            <input type="tel" id="phone" class="form-control" placeholder="+1 555-0100">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="major">Major / Program</label>
+            <input type="text" id="major" class="form-control" placeholder="Computer Science">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="yearOfStudy">Year of Study</label>
+            <select id="yearOfStudy" class="form-control">
+              <option value="1">1st Year (Freshman)</option>
+              <option value="2">2nd Year (Sophomore)</option>
+              <option value="3">3rd Year (Junior)</option>
+              <option value="4">4th Year (Senior)</option>
+              <option value="5">Graduate / Master</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password (min 6 characters) *</label>
+          <input type="password" id="password" class="form-control" placeholder="••••••••" required minlength="6">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" id="initiate-btn">
+          Verify Email &amp; Create Account →
+        </button>
+      </form>
+
+      <div class="auth-footer" style="margin-top: 1.5rem; border-top: 1px solid var(--border-light); padding-top: 1.25rem;">
+        Already registered? <a href="/login.html" style="font-weight: 700; color: var(--primary);">Sign in here</a>
+      </div>
+    </div>
+
+    <!-- STEP 2: Email Verification OTP Screen -->
+    <div id="step-otp" style="display: none;">
+      <div class="otp-security-banner" style="text-align: center; margin-bottom: 1.5rem;">
+        <div style="font-size: 2.25rem; margin-bottom: 0.35rem;">✉️</div>
+        <div style="font-weight: 700; color: var(--text-primary); font-size: 1.15rem;">Check Your Email</div>
+        <div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.35rem; line-height: 1.4;">
+          We sent a 6-digit verification code to<br>
+          <strong id="target-email-label" style="color: var(--primary);"></strong>
+        </div>
+      </div>
+
+      <form id="otp-form" onsubmit="handleVerifyOtp(event)">
+        <label class="form-label" style="text-align: center; display: block; margin-bottom: 0.75rem;">Enter 6-Digit Code</label>
+        
+        <div class="otp-container">
+          <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" id="otp-1" autofocus required>
+          <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" id="otp-2" required>
+          <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" id="otp-3" required>
+          <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" id="otp-4" required>
+          <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" id="otp-5" required>
+          <input type="text" class="otp-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" id="otp-6" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="verify-btn">
+          Verify &amp; Activate Account ✓
+        </button>
+      </form>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; font-size: 0.85rem;">
+        <button type="button" onclick="backToRegistrationForm()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; text-decoration: underline;">
+          ← Edit Details
+        </button>
+        <div>
+          <button type="button" id="resend-btn" onclick="handleResendOtp()" style="background: none; border: none; color: var(--primary); font-weight: 600; cursor: pointer;">
+            Resend Code (<span id="resend-timer">60</span>s)
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script>
+    let registeredEmail = '';
+    let resendCountdown = 60;
+    let resendInterval = null;
+
+    function showError(msg) {
+      const errorBox = document.getElementById('reg-error-alert');
+      document.getElementById('reg-error-text').textContent = msg;
+      errorBox.style.display = 'flex';
+      document.getElementById('reg-success-alert').style.display = 'none';
+    }
+
+    function showSuccess(msg) {
+      const successBox = document.getElementById('reg-success-alert');
+      document.getElementById('reg-success-text').textContent = msg;
+      successBox.style.display = 'flex';
+      document.getElementById('reg-error-alert').style.display = 'none';
+    }
+
+    function clearAlerts() {
+      document.getElementById('reg-error-alert').style.display = 'none';
+      document.getElementById('reg-success-alert').style.display = 'none';
+    }
+
+    // Initialize OTP Auto-Advance Input Handling
+    function setupOtpInputs() {
+      const inputs = [
+        document.getElementById('otp-1'),
+        document.getElementById('otp-2'),
+        document.getElementById('otp-3'),
+        document.getElementById('otp-4'),
+        document.getElementById('otp-5'),
+        document.getElementById('otp-6')
+      ];
+
+      inputs.forEach((input, index) => {
+        input.value = '';
+        input.addEventListener('input', (e) => {
+          const val = e.target.value.replace(/[^0-9]/g, '');
+          e.target.value = val ? val.slice(-1) : '';
+
+          if (e.target.value && index < inputs.length - 1) {
+            inputs[index + 1].focus();
+          }
+
+          // If all 6 digits entered, auto submit
+          const code = inputs.map(i => i.value).join('');
+          if (code.length === 6) {
+            handleVerifyOtp();
+          }
+        });
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Backspace' && !input.value && index > 0) {
+            inputs[index - 1].focus();
+          }
+        });
+
+        input.addEventListener('paste', (e) => {
+          e.preventDefault();
+          const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
+          const digits = pasteData.replace(/\D/g, '').slice(0, 6);
+          if (digits) {
+            digits.split('').forEach((d, i) => {
+              if (inputs[i]) inputs[i].value = d;
+            });
+            const nextIdx = Math.min(digits.length, inputs.length - 1);
+            inputs[nextIdx].focus();
+            if (digits.length === 6) {
+              handleVerifyOtp();
+            }
+          }
+        });
+      });
+    }
+
+    function startResendTimer(seconds = 60) {
+      resendCountdown = seconds;
+      const resendBtn = document.getElementById('resend-btn');
+      const timerSpan = document.getElementById('resend-timer');
+      
+      resendBtn.disabled = true;
+      resendBtn.style.opacity = '0.6';
+      resendBtn.style.cursor = 'not-allowed';
+
+      if (resendInterval) clearInterval(resendInterval);
+
+      resendInterval = setInterval(() => {
+        resendCountdown--;
+        if (timerSpan) timerSpan.textContent = resendCountdown;
+        if (resendCountdown <= 0) {
+          clearInterval(resendInterval);
+          resendBtn.disabled = false;
+          resendBtn.style.opacity = '1';
+          resendBtn.style.cursor = 'pointer';
+          resendBtn.innerHTML = 'Resend Code';
+        } else {
+          resendBtn.innerHTML = `Resend Code (${resendCountdown}s)`;
+        }
+      }, 1000);
+    }
+
+    async function handleInitiateRegister(e) {
+      if (e) e.preventDefault();
+      clearAlerts();
+
+      const btn = document.getElementById('initiate-btn');
+      const email = document.getElementById('email').value.trim();
+      registeredEmail = email;
+
+      const payload = {
+        name: document.getElementById('name').value.trim(),
+        email: email,
+        password: document.getElementById('password').value,
+        studentNumber: document.getElementById('studentNumber').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        major: document.getElementById('major').value.trim(),
+        yearOfStudy: parseInt(document.getElementById('yearOfStudy').value, 10),
+        role: 'STUDENT'
+      };
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-sm"></span> Sending Code...';
+
+      try {
+        const data = await auth.initiateRegistration(payload);
+        
+        // Transition to Step 2 OTP Screen
+        document.getElementById('step-registration').style.display = 'none';
+        document.getElementById('step-otp').style.display = 'block';
+        document.getElementById('form-subtitle').textContent = 'Verify your email address';
+        document.getElementById('target-email-label').textContent = registeredEmail;
+        
+        setupOtpInputs();
+        startResendTimer(data.cooldownSeconds || 60);
+        showSuccess('Verification code sent! Please check your email inbox.');
+        
+        setTimeout(() => {
+          document.getElementById('otp-1').focus();
+        }, 100);
+      } catch (err) {
+        showError(err.message || 'Registration failed');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Verify Email &amp; Create Account →';
+      }
+    }
+
+    async function handleVerifyOtp(e) {
+      if (e) e.preventDefault();
+      clearAlerts();
+
+      const inputs = [
+        document.getElementById('otp-1'),
+        document.getElementById('otp-2'),
+        document.getElementById('otp-3'),
+        document.getElementById('otp-4'),
+        document.getElementById('otp-5'),
+        document.getElementById('otp-6')
+      ];
+
+      const otp = inputs.map(i => i.value).join('').trim();
+      if (otp.length < 6) {
+        showError('Please enter all 6 digits of your verification code.');
+        return;
+      }
+
+      const verifyBtn = document.getElementById('verify-btn');
+      verifyBtn.disabled = true;
+      verifyBtn.innerHTML = '<span class="spinner-sm"></span> Verifying...';
+
+      try {
+        const data = await auth.verifyRegistration(registeredEmail, otp);
+        showSuccess('Email verified! Redirecting to student dashboard...');
+        setTimeout(() => {
+          window.location.href = '/student/dashboard.html';
+        }, 500);
+      } catch (err) {
+        showError(err.message || 'Invalid or expired verification code.');
+        inputs.forEach(i => i.value = '');
+        inputs[0].focus();
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = 'Verify &amp; Activate Account ✓';
+      }
+    }
+
+    async function handleResendOtp() {
+      if (!registeredEmail) return;
+      clearAlerts();
+
+      const resendBtn = document.getElementById('resend-btn');
+      resendBtn.disabled = true;
+      resendBtn.innerHTML = '<span class="spinner-sm"></span> Sending...';
+
+      try {
+        const data = await auth.resendRegistrationOtp(registeredEmail);
+        showSuccess('A fresh verification code has been dispatched to your email.');
+        startResendTimer(data.cooldownSeconds || 60);
+      } catch (err) {
+        showError(err.message || 'Failed to resend code');
+        resendBtn.disabled = false;
+        resendBtn.innerHTML = 'Resend Code';
+      }
+    }
+
+    function backToRegistrationForm() {
+      clearAlerts();
+      if (resendInterval) clearInterval(resendInterval);
+      document.getElementById('step-otp').style.display = 'none';
+      document.getElementById('step-registration').style.display = 'block';
+      document.getElementById('form-subtitle').textContent = 'Create your verified student account';
+    }
+  </script>
+</body>
+</html>

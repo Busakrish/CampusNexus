@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Details — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/student/events.html" class="btn btn-secondary btn-sm">← Back to Events</a>
+        </div>
+
+        <div id="event-details-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get('id');
+
+    async function loadEventDetails() {
+      const container = document.getElementById('event-details-container');
+      if (!eventId) {
+        utils.renderError(container, 'No event ID specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading event specifications...');
+
+      try {
+        const res = await api.get(`/events/${eventId}`);
+        if (!res.success || !res.data.event) throw new Error(res.message);
+
+        const { event, organization } = res.data;
+
+        // Check if student already registered
+        const regRes = await api.get('/registrations', { eventId: event.eventId });
+        const myRegistration = regRes.data && regRes.data.registrations ? regRes.data.registrations[0] : null;
+
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+            
+            <!-- Left Column: Details -->
+            <div class="card">
+              <div style="height: 240px; border-radius: var(--radius-md); background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url('${event.banner || 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80'}'); background-size: cover; background-position: center; margin-bottom: 1.5rem; display: flex; align-items: flex-end; padding: 1.5rem;">
+                <div>
+                  <span class="badge" style="background: rgba(0,0,0,0.7); color: #fff; margin-bottom: 0.5rem;">${event.category}</span>
+                  <h1 style="color: #fff; font-size: 2rem; line-height: 1.2;">${event.eventName}</h1>
+                </div>
+              </div>
+
+              <div style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.7; margin-bottom: 2rem;">
+                <h3 style="color: var(--text-primary); margin-bottom: 0.75rem;">About this Event</h3>
+                <p>${event.description}</p>
+              </div>
+
+              <div style="background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                <h4 style="margin-bottom: 0.75rem; font-size: 1rem;">Hosted by</h4>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <div style="font-size: 1.5rem;">🏛️</div>
+                  <div>
+                    <strong style="color: var(--text-primary);">${organization ? organization.name : 'Campus Club'}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">${organization ? organization.category : 'Student Organization'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: Registration Card -->
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div class="card">
+                <h3 style="font-size: 1.2rem; margin-bottom: 1rem;">Event Schedule & Info</h3>
+
+                <div style="display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.9rem; margin-bottom: 1.5rem;">
+                  <div>
+                    <span style="color: var(--text-muted); display: block; font-size: 0.8rem;">START DATE & TIME</span>
+                    <strong>📅 ${utils.formatDate(event.startDate)} at ${event.startTime}</strong>
+                  </div>
+                  <div>
+                    <span style="color: var(--text-muted); display: block; font-size: 0.8rem;">END DATE</span>
+                    <strong>📅 ${utils.formatDate(event.endDate)} at ${event.endTime}</strong>
+                  </div>
+                  <div>
+                    <span style="color: var(--text-muted); display: block; font-size: 0.8rem;">VENUE & LOCATION</span>
+                    <strong>📍 ${event.venue} ${event.room ? `(${event.room})` : ''}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">${event.address || ''}</div>
+                  </div>
+                  <div>
+                    <span style="color: var(--text-muted); display: block; font-size: 0.8rem;">REGISTRATION DEADLINE</span>
+                    <strong style="color: var(--accent-amber);">⏳ ${utils.formatDateTime(event.registrationDeadline)}</strong>
+                  </div>
+                  <div>
+                    <span style="color: var(--text-muted); display: block; font-size: 0.8rem;">ADMISSION FEE</span>
+                    <strong style="font-size: 1.25rem; color: var(--text-primary);">
+                      ${event.registrationFee > 0 ? utils.formatCurrency(event.registrationFee) : '<span style="color: var(--accent-emerald);">FREE ADMISSION</span>'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style="color: var(--text-muted); display: block; font-size: 0.8rem;">REMAINING CAPACITY</span>
+                    <strong style="font-size: 1.1rem; color: ${event.availableSeats > 0 ? 'var(--accent-cyan)' : 'var(--accent-rose)'};">
+                      ${event.availableSeats} of ${event.maximumCapacity} seats open
+                    </strong>
+                  </div>
+                  ${event.requiresMembership ? `
+                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--accent-amber);">
+                      ⚠️ Active club membership in ${organization ? organization.code : 'host org'} is required for this event.
+                    </div>
+                  ` : ''}
+                </div>
+
+                <div id="register-action-box">
+                  ${renderRegisterButton(event, myRegistration)}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadEventDetails);
+      }
+    }
+
+    function renderRegisterButton(event, myRegistration) {
+      if (myRegistration) {
+        if (myRegistration.status === 'Confirmed') {
+          return `
+            <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 1rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 0.75rem;">
+              <span style="color: var(--accent-emerald); font-weight: 700; display: block; margin-bottom: 0.5rem;">✓ Registered & Confirmed</span>
+              <a href="/student/tickets.html" class="btn btn-primary btn-sm" style="width: 100%;">View My QR Ticket 🎟️</a>
+            </div>
+            <button class="btn btn-danger btn-sm" style="width: 100%;" onclick="cancelMyRegistration('${myRegistration.registrationId}')">Cancel Registration</button>
+          `;
+        } else if (myRegistration.status === 'Pending') {
+          return `
+            <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); padding: 1rem; border-radius: var(--radius-md); text-align: center; margin-bottom: 0.75rem;">
+              <span style="color: var(--accent-amber); font-weight: 700; display: block; margin-bottom: 0.5rem;">⏳ Registration Pending Payment</span>
+              <button class="btn btn-primary btn-sm" style="width: 100%;" onclick="payRegistrationFee('${myRegistration.registrationId}', ${event.registrationFee})">Pay Fee ($${event.registrationFee})</button>
+            </div>
+            <button class="btn btn-secondary btn-sm" style="width: 100%;" onclick="cancelMyRegistration('${myRegistration.registrationId}')">Cancel</button>
+          `;
+        }
+      }
+
+      if (event.availableSeats <= 0) {
+        return `<button class="btn btn-secondary" style="width: 100%;" disabled>Sold Out / Capacity Full</button>`;
+      }
+
+      const deadlinePassed = new Date() > new Date(event.registrationDeadline);
+      if (deadlinePassed) {
+        return `<button class="btn btn-secondary" style="width: 100%;" disabled>Registration Closed</button>`;
+      }
+
+      return `
+        <button class="btn btn-primary btn-lg" style="width: 100%;" onclick="proceedRegistration('${event.eventId}', ${event.registrationFee})">
+          ${event.registrationFee > 0 ? `Register & Pay ${utils.formatCurrency(event.registrationFee)}` : 'Register for Free →'}
+        </button>
+      `;
+    }
+
+    async function proceedRegistration(eventId, fee) {
+      try {
+        const res = await api.post(`/registrations/events/${eventId}/register`);
+        if (!res.success) throw new Error(res.message);
+
+        if (res.data.requiresPayment) {
+          const regId = res.data.registration.registrationId;
+          const confirmed = await utils.confirmDialog(
+            'Complete Registration Payment',
+            `Your seat has been reserved. Please verify payment of ${utils.formatCurrency(fee)} to receive your ticket.`,
+            'Confirm & Pay Now'
+          );
+          if (confirmed) {
+            await api.post(`/registrations/${regId}/pay`, { paymentMethod: 'SIMULATED' });
+            utils.toast('Payment verified and QR Ticket issued!', 'success');
+            setTimeout(() => window.location.href = '/student/tickets.html', 500);
+            return;
+          }
+        } else {
+          utils.toast('Registration confirmed! Your QR ticket is ready.', 'success');
+          setTimeout(() => window.location.href = '/student/tickets.html', 500);
+          return;
+        }
+        loadEventDetails();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function payRegistrationFee(regId, fee) {
+      try {
+        await api.post(`/registrations/${regId}/pay`, { paymentMethod: 'SIMULATED' });
+        utils.toast('Payment verified and ticket issued!', 'success');
+        setTimeout(() => window.location.href = '/student/tickets.html', 500);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function cancelMyRegistration(regId) {
+      const confirmed = await utils.confirmDialog(
+        'Cancel Registration',
+        'Are you sure you want to cancel your registration? Your seat will be returned to the open pool.',
+        'Yes, Cancel Registration',
+        true
+      );
+      if (!confirmed) return;
+
+      try {
+        await api.put(`/registrations/${regId}/cancel`, { reason: 'Cancelled by student via portal' });
+        utils.toast('Registration cancelled and seat released.', 'info');
+        loadEventDetails();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadEventDetails();
+  </script>
+</body>
+</html>

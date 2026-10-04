@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Management — CampusNexus Organizer</title>
+  <meta name="description" content="Create, edit, and manage events. Control capacity, pricing, ticket tiers, and publish events for student registration.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Event Management</h1>
+            <p class="page-subtitle">Create and manage your organization's events, set capacity limits and ticket pricing.</p>
+          </div>
+          <button class="btn btn-primary" id="create-event-btn">+ Create New Event</button>
+        </div>
+
+        <!-- Filters -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <select class="form-control" id="filter-status" style="width: auto; min-width: 150px;">
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <input type="text" class="form-control" id="search-events" placeholder="Search events..." style="flex: 1; min-width: 200px;">
+            <button class="btn btn-secondary" id="btn-apply-filters">Filter</button>
+          </div>
+        </div>
+
+        <!-- Events List -->
+        <div id="events-list-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Create/Edit Event Modal -->
+  <div class="modal-overlay" id="event-modal">
+    <div class="modal-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
+      <div class="card-header" style="margin-bottom: 1.5rem;">
+        <h2 class="card-title" id="modal-title">Create New Event</h2>
+        <button class="btn btn-secondary btn-sm" id="close-modal-btn">✕</button>
+      </div>
+      <form id="event-form">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label class="form-label">Event Name *</label>
+            <input type="text" class="form-control" id="f-name" placeholder="Annual Tech Conference 2026" required>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label class="form-label">Description *</label>
+            <textarea class="form-control" id="f-description" rows="3" placeholder="Describe your event..." required></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Start Date *</label>
+            <input type="date" class="form-control" id="f-startDate" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Start Time *</label>
+            <input type="time" class="form-control" id="f-startTime" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date *</label>
+            <input type="date" class="form-control" id="f-endDate" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Time *</label>
+            <input type="time" class="form-control" id="f-endTime" required>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label class="form-label">Venue / Location *</label>
+            <input type="text" class="form-control" id="f-venue" placeholder="Main Auditorium, Building B" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Capacity Limit *</label>
+            <input type="number" class="form-control" id="f-capacityLimit" min="1" placeholder="200" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Registration Fee (₹)</label>
+            <input type="number" class="form-control" id="f-registrationFee" min="0" step="0.01" placeholder="0 for free">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-control" id="f-category">
+              <option value="workshop">Workshop</option>
+              <option value="seminar">Seminar</option>
+              <option value="cultural">Cultural</option>
+              <option value="sports">Sports</option>
+              <option value="hackathon">Hackathon</option>
+              <option value="fundraiser">Fundraiser</option>
+              <option value="orientation">Orientation</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select class="form-control" id="f-status">
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label class="form-label">Tags (comma-separated)</label>
+            <input type="text" class="form-control" id="f-tags" placeholder="technology, networking, free">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-form-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-event-btn">Create Event</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ORGANIZER', 'ADMIN');
+
+    let editingEventId = null;
+    let allEvents = [];
+
+    async function loadEvents() {
+      const container = document.getElementById('events-list-container');
+      utils.renderLoading(container);
+      try {
+        const status = document.getElementById('filter-status').value;
+        const search = document.getElementById('search-events').value.trim();
+        const params = {};
+        if (status) params.status = status;
+        if (search) params.search = search;
+
+        const res = await api.get('/events', params);
+        if (!res.success) throw new Error(res.message);
+        allEvents = res.data.events || [];
+
+        if (allEvents.length === 0) {
+          utils.renderEmpty(container, 'No events found', 'Create your first event to get started.');
+          return;
+        }
+
+        container.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            ${allEvents.map(e => {
+              const reg = e.registrationCount ?? e.registeredCount ?? 0;
+              const cap = e.maximumCapacity ?? e.capacityLimit ?? 0;
+              const statusUpper = (e.status || '').toUpperCase();
+              return `
+                <div class="card card-hover" style="display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                      <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${e.eventName}</h3>
+                      ${utils.renderBadge(e.status)}
+                      ${e.category ? `<span class="badge" style="background: var(--status-info-bg); color: var(--status-info-text);">${e.category}</span>` : ''}
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 1.25rem; flex-wrap: wrap;">
+                      <span>📅 ${utils.formatDate(e.startDate)} at ${e.startTime || '09:00'}</span>
+                      <span>📍 ${e.venue || 'TBD'}</span>
+                      <span>👥 ${reg}/${cap} registered</span>
+                      <span>💰 ${e.registrationFee > 0 ? utils.formatCurrency(e.registrationFee) : '<span style="color:var(--accent-emerald)">Free</span>'}</span>
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap;">
+                    <a href="/organizer/event-details.html?id=${e.eventId}" class="btn btn-secondary btn-sm">Details</a>
+                    ${(statusUpper === 'DRAFT' || statusUpper === 'REJECTED') ? `
+                      <button class="btn btn-secondary btn-sm" onclick="openEditModal('${e.eventId}')">Edit ✏️</button>
+                      <button class="btn btn-primary btn-sm" onclick="submitForApproval('${e.eventId}')">Submit for Approval ⏳</button>
+                    ` : ''}
+                    ${statusUpper === 'APPROVED' ? `
+                      <button class="btn btn-primary btn-sm" onclick="publishEvent('${e.eventId}')">Publish to Students 📢</button>
+                    ` : ''}
+                    ${statusUpper === 'PUBLISHED' ? `
+                      <a href="/organizer/qr-scanner.html?eventId=${e.eventId}" class="btn btn-primary btn-sm">Scan Gate 📷</a>
+                      <button class="btn btn-danger btn-sm" onclick="cancelEvent('${e.eventId}')">Cancel</button>
+                    ` : ''}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message);
+      }
+    }
+
+    function openCreateModal() {
+      editingEventId = null;
+      document.getElementById('modal-title').textContent = 'Create New Event';
+      document.getElementById('save-event-btn').textContent = 'Create Event';
+      document.getElementById('event-form').reset();
+      document.getElementById('event-modal').classList.add('active');
+    }
+
+    async function openEditModal(eventId) {
+      try {
+        const res = await api.get(`/events/${eventId}`);
+        if (!res.success) throw new Error(res.message);
+        const e = res.data.event;
+        editingEventId = eventId;
+        document.getElementById('modal-title').textContent = 'Edit Event';
+        document.getElementById('save-event-btn').textContent = 'Save Changes';
+        document.getElementById('f-name').value = e.eventName || '';
+        document.getElementById('f-description').value = e.description || '';
+        document.getElementById('f-startDate').value = e.startDate ? e.startDate.split('T')[0] : '';
+        document.getElementById('f-startTime').value = e.startTime || '';
+        document.getElementById('f-endDate').value = e.endDate ? e.endDate.split('T')[0] : '';
+        document.getElementById('f-endTime').value = e.endTime || '';
+        document.getElementById('f-venue').value = e.venue || '';
+        document.getElementById('f-capacityLimit').value = e.maximumCapacity ?? e.capacityLimit ?? '';
+        document.getElementById('f-registrationFee').value = e.registrationFee || 0;
+        document.getElementById('f-category').value = (e.category || 'workshop').toLowerCase();
+        document.getElementById('f-status').value = (e.status || 'Draft').toLowerCase();
+        document.getElementById('f-tags').value = (e.tags || []).join(', ');
+        document.getElementById('event-modal').classList.add('active');
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function submitForApproval(eventId) {
+      try {
+        const res = await api.put(`/events/${eventId}/submit`);
+        if (res.success) {
+          utils.toast('Event submitted for Admin approval!', 'success');
+          loadEvents();
+        } else throw new Error(res.message);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function publishEvent(eventId) {
+      const confirmed = await utils.confirmDialog(
+        'Publish Event',
+        'Publish this event? Students across campus will immediately see it in Upcoming Events and will be able to register.',
+        'Publish Now'
+      );
+      if (!confirmed) return;
+      try {
+        const res = await api.put(`/events/${eventId}/publish`);
+        if (res.success) { utils.toast('Event published successfully to students!', 'success'); loadEvents(); }
+        else throw new Error(res.message);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function cancelEvent(eventId) {
+      const confirmed = await utils.confirmDialog(
+        'Cancel Event',
+        'Cancel this event? All active tickets and registrations will be invalidated.',
+        'Cancel Event',
+        true
+      );
+      if (!confirmed) return;
+      try {
+        const res = await api.put(`/events/${eventId}/cancel`, { reason: 'Cancelled by organizer' });
+        if (res.success) { utils.toast('Event cancelled.', 'info'); loadEvents(); }
+        else throw new Error(res.message);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    document.getElementById('create-event-btn').onclick = openCreateModal;
+    document.getElementById('close-modal-btn').onclick = () => document.getElementById('event-modal').classList.remove('active');
+    document.getElementById('cancel-form-btn').onclick = () => document.getElementById('event-modal').classList.remove('active');
+    document.getElementById('btn-apply-filters').onclick = loadEvents;
+
+    document.getElementById('event-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('save-event-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      const capVal = parseInt(document.getElementById('f-capacityLimit').value, 10);
+      const startVal = document.getElementById('f-startDate').value;
+      const endVal = document.getElementById('f-endDate').value || startVal;
+
+      const payload = {
+        eventName: document.getElementById('f-name').value.trim(),
+        description: document.getElementById('f-description').value.trim(),
+        startDate: startVal,
+        startTime: document.getElementById('f-startTime').value || '09:00',
+        endDate: endVal,
+        endTime: document.getElementById('f-endTime').value || '17:00',
+        venue: document.getElementById('f-venue').value.trim(),
+        maximumCapacity: capVal,
+        capacityLimit: capVal,
+        registrationDeadline: startVal,
+        registrationFee: parseFloat(document.getElementById('f-registrationFee').value) || 0,
+        category: document.getElementById('f-category').value,
+        status: document.getElementById('f-status').value
+      };
+
+      try {
+        let res;
+        if (editingEventId) {
+          res = await api.put(`/events/${editingEventId}`, payload);
+        } else {
+          res = await api.post('/events', payload);
+        }
+        if (!res.success) throw new Error(res.message);
+        utils.toast(editingEventId ? 'Event updated!' : 'Event created as Draft!', 'success');
+        document.getElementById('event-modal').classList.remove('active');
+        loadEvents();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = editingEventId ? 'Save Changes' : 'Create Event';
+      }
+    });
+
+    loadEvents();
+  </script>
+</body>
+</html>

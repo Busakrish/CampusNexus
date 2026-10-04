@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Fundraiser — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/admin/fundraisers.html" class="btn btn-secondary btn-sm">← Back to Fundraisers</a>
+        </div>
+
+        <div class="card" style="max-width: 760px;">
+          <h1 class="page-title" style="font-size: 1.6rem; margin-bottom: 1.5rem;">Launch New Fundraising Campaign</h1>
+
+          <form id="fundraiser-form">
+            <div class="form-group">
+              <label class="form-label" for="organizationId">Organization *</label>
+              <select id="organizationId" class="form-control" required></select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="name">Campaign Name *</label>
+              <input type="text" id="name" class="form-control" placeholder="e.g. Student Laptop Grant Fund" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="purpose">Campaign Purpose & Beneficiary *</label>
+              <textarea id="purpose" class="form-control" placeholder="Explain the objective and donation utilization plan..." required></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="targetAmount">Target Goal Amount ($) *</label>
+                <input type="number" id="targetAmount" class="form-control" min="1" step="any" placeholder="5000.00" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="startDate">Campaign Start Date *</label>
+                <input type="date" id="startDate" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="endDate">Campaign End Date *</label>
+                <input type="date" id="endDate" class="form-control" required>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+              <a href="/admin/fundraisers.html" class="btn btn-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary" id="submit-btn">Launch Campaign</button>
+            </div>
+          </form>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN', 'ORGANIZER');
+
+    async function loadOrgs() {
+      try {
+        const res = await api.get('/organizations');
+        if (res.success && res.data.organizations) {
+          const select = document.getElementById('organizationId');
+          select.innerHTML = res.data.organizations.map(o => `<option value="${o.organizationId}">${o.name}</option>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('fundraiser-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+
+      const payload = {
+        organizationId: document.getElementById('organizationId').value,
+        name: document.getElementById('name').value.trim(),
+        purpose: document.getElementById('purpose').value.trim(),
+        targetAmount: Number(document.getElementById('targetAmount').value),
+        startDate: document.getElementById('startDate').value,
+        endDate: document.getElementById('endDate').value
+      };
+
+      try {
+        await api.post('/fundraisers', payload);
+        utils.toast('Fundraiser campaign created successfully!', 'success');
+        setTimeout(() => window.location.href = '/admin/fundraisers.html', 500);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+        btn.disabled = false;
+      }
+    });
+
+    loadOrgs();
+  </script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusNexus — Unified Student Organization Management System</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/auth.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body style="background: radial-gradient(circle at 10% 20%, rgba(5, 150, 105, 0.08) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(217, 119, 6, 0.06) 0%, transparent 40%), var(--bg-main);">
+  
+  <div style="min-height: 100vh; display: flex; flex-direction: column;">
+    <!-- Top Navigation Header -->
+    <header style="height: 80px; display: flex; align-items: center; justify-content: space-between; padding: 0 3rem; border-bottom: 1px solid var(--border-subtle); background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px);">
+      <div style="display: flex; align-items: center; gap: 0.75rem; font-family: var(--font-heading); font-size: 1.6rem; font-weight: 800;">
+        <span style="color: var(--accent-cyan);">❖</span> Campus<span style="color: var(--primary);">Nexus</span>
+      </div>
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <a href="/login.html" class="btn btn-secondary">Sign In</a>
+        <a href="/register.html" class="btn btn-primary">Create Student Account</a>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <main style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; text-align: center; max-width: 1200px; margin: 0 auto;">
+      <span class="badge badge-info" style="margin-bottom: 1.5rem; font-size: 0.85rem; padding: 0.4rem 1rem;">COLLEGIATE ECOSYSTEM PLATFORM</span>
+      <h1 style="font-size: 3.5rem; font-weight: 800; line-height: 1.15; margin-bottom: 1.5rem; max-width: 900px;">
+        One Unified System for <span style="background: linear-gradient(135deg, var(--primary), var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Campus Life & Organization Governance</span>
+      </h1>
+      <p style="color: var(--text-secondary); font-size: 1.2rem; max-width: 720px; line-height: 1.6; margin-bottom: 2.5rem;">
+        Replacing disconnected spreadsheets, ticket lists, manual inventories, and receipt chasing with connected operational and financial records.
+      </p>
+
+      <!-- Role Access Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; width: 100%; margin-bottom: 3rem;">
+        <div class="card card-hover" style="text-align: left; padding: 1.5rem;">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🎓</div>
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.4rem;">Student Portal</h3>
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">Browse events, manage club memberships, order merchandise, and access QR tickets.</p>
+          <a href="/login.html?role=STUDENT" class="btn btn-secondary btn-sm" style="width: 100%;">Enter Student</a>
+        </div>
+
+        <div class="card card-hover" style="text-align: left; padding: 1.5rem;">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🤝</div>
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.4rem;">Volunteer Portal</h3>
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">Track assigned tasks, perform live QR check-ins, record collections & claims.</p>
+          <a href="/login.html?role=VOLUNTEER" class="btn btn-secondary btn-sm" style="width: 100%;">Enter Volunteer</a>
+        </div>
+
+        <div class="card card-hover" style="text-align: left; padding: 1.5rem;">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🏛️</div>
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.4rem;">Organizer Portal</h3>
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">Manage club profile, create events, monitor attendance rates, and analyze metrics.</p>
+          <a href="/login.html?role=ORGANIZER" class="btn btn-secondary btn-sm" style="width: 100%;">Enter Organizer</a>
+        </div>
+
+        <div class="card card-hover" style="text-align: left; padding: 1.5rem;">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">💳</div>
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.4rem;">Treasurer Portal</h3>
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">Oversee income, audit expenses, disburse reimbursements, and monitor budgets.</p>
+          <a href="/login.html?role=TREASURER" class="btn btn-secondary btn-sm" style="width: 100%;">Enter Treasurer</a>
+        </div>
+
+        <div class="card card-hover" style="text-align: left; padding: 1.5rem;">
+          <div style="font-size: 2rem; margin-bottom: 0.75rem;">🛡️</div>
+          <h3 style="font-size: 1.15rem; margin-bottom: 0.4rem;">Admin Portal</h3>
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">Institutional governance, approve events, manage users, catalog & roles.</p>
+          <a href="/login.html?role=ADMIN" class="btn btn-secondary btn-sm" style="width: 100%;">Enter Admin</a>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer style="border-top: 1px solid var(--border-subtle); padding: 1.5rem 3rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+      CampusNexus © 2026 — Production Student Organization Management System.
+    </footer>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    if (auth.isAuthenticated()) {
+      const user = auth.getUser();
+      if (user && user.role) {
+        window.location.href = auth.getRoleDashboardUrl(user.role);
+      }
+    }
+  </script>
+</body>
+</html>

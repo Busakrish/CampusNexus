@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fundraiser Details & Collection Logger — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/volunteer/fundraisers.html" class="btn btn-secondary btn-sm">← Back to Fundraisers</a>
+        </div>
+
+        <div id="fundraiser-details-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Log Collection Modal -->
+  <div class="modal-overlay" id="collection-modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 1.25rem; font-size: 1.3rem;">Log Contributor Collection</h3>
+      <form id="collection-form">
+        <div class="form-group">
+          <label class="form-label" for="donor-name">Donor / Contributor Name *</label>
+          <input type="text" id="donor-name" class="form-control" placeholder="e.g. John Smith or Alumni Group" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="donor-email">Donor Email</label>
+            <input type="email" id="donor-email" class="form-control" placeholder="john@example.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="donor-phone">Donor Phone</label>
+            <input type="tel" id="donor-phone" class="form-control">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="col-amount">Amount Collected ($) *</label>
+            <input type="number" id="col-amount" class="form-control" min="1" step="any" placeholder="50.00" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="col-method">Payment Method</label>
+            <select id="col-method" class="form-control">
+              <option value="CASH">Cash</option>
+              <option value="UPI">UPI / Digital Transfer</option>
+              <option value="CHEQUE">Cheque</option>
+              <option value="CARD">Debit / Credit Card</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="col-notes">Notes / Receipt Reference</label>
+          <input type="text" id="col-notes" class="form-control" placeholder="Booth donation cash box receipt #4">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeCollectionModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Submit for Treasurer Verification</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('VOLUNTEER', 'ADMIN');
+
+    const params = new URLSearchParams(window.location.search);
+    const fundraiserId = params.get('id');
+
+    async function loadFundraiser() {
+      const container = document.getElementById('fundraiser-details-container');
+      if (!fundraiserId) {
+        utils.renderError(container, 'No fundraiser specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading fundraiser data...');
+
+      try {
+        const res = await api.get(`/fundraisers/${fundraiserId}`);
+        if (!res.success || !res.data.fundraiser) throw new Error(res.message);
+
+        const { fundraiser, organization, collections } = res.data;
+
+        container.innerHTML = `
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+            
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <span style="font-size: 0.8rem; color: var(--accent-cyan); font-weight: 700; text-transform: uppercase;">
+                    ${organization ? organization.name : 'Campaign'}
+                  </span>
+                  <h1 style="font-size: 1.75rem; margin-top: 0.25rem;">${fundraiser.name}</h1>
+                </div>
+                ${utils.renderBadge(fundraiser.status)}
+              </div>
+
+              <p style="color: var(--text-secondary); line-height: 1.7; margin-bottom: 1.5rem;">${fundraiser.purpose}</p>
+
+              <div style="background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.5rem;">
+                  <span>Verified Collections: <strong>${utils.formatCurrency(fundraiser.collectedAmount)}</strong></span>
+                  <span style="color: var(--text-muted);">Target: ${utils.formatCurrency(fundraiser.targetAmount)} (${res.data.progressPercentage}%)</span>
+                </div>
+                <div style="width: 100%; height: 10px; background: var(--bg-surface); border-radius: 5px; overflow: hidden;">
+                  <div style="width: ${res.data.progressPercentage}%; height: 100%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald));"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="display: flex; flex-direction: column; justify-content: center; text-align: center;">
+              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💰</div>
+              <h3 style="margin-bottom: 0.5rem;">Received a Donation?</h3>
+              <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                Log offline or online pledges to queue them for Treasurer verification.
+              </p>
+              <button class="btn btn-primary" onclick="openCollectionModal()">+ Log Contributor Collection</button>
+            </div>
+
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Collections Logged for this Campaign</h2>
+            </div>
+            ${collections && collections.length > 0 ? `
+              <div class="table-responsive">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Collection ID</th>
+                      <th>Contributor</th>
+                      <th>Amount</th>
+                      <th>Payment Method</th>
+                      <th>Logged Date</th>
+                      <th>Verification Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${collections.map(c => `
+                      <tr>
+                        <td><strong style="font-family: monospace;">#${c.collectionId}</strong></td>
+                        <td>${c.contributor ? c.contributor.name : 'Donor'}</td>
+                        <td><strong style="color: var(--text-primary);">${utils.formatCurrency(c.amount)}</strong></td>
+                        <td>${c.paymentMethod}</td>
+                        <td>${utils.formatDate(c.createdAt)}</td>
+                        <td>${utils.renderBadge(c.status)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : `
+              <p style="color: var(--text-muted); font-size: 0.9rem;">No collections submitted yet for this campaign.</p>
+            `}
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadFundraiser);
+      }
+    }
+
+    function openCollectionModal() {
+      document.getElementById('collection-modal').classList.add('active');
+    }
+
+    function closeCollectionModal() {
+      document.getElementById('collection-modal').classList.remove('active');
+    }
+
+    document.getElementById('collection-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        fundraiserId,
+        contributor: {
+          name: document.getElementById('donor-name').value.trim(),
+          email: document.getElementById('donor-email').value.trim(),
+          phone: document.getElementById('donor-phone').value.trim()
+        },
+        amount: Number(document.getElementById('col-amount').value),
+        paymentMethod: document.getElementById('col-method').value,
+        notes: document.getElementById('col-notes').value.trim()
+      };
+
+      try {
+        const res = await api.post('/collections', payload);
+        utils.toast(res.message || 'Collection submitted for verification', 'success');
+        closeCollectionModal();
+        loadFundraiser();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    });
+
+    loadFundraiser();
+  </script>
+</body>
+</html>

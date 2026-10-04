@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Review & Governance — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/admin/events.html" class="btn btn-secondary btn-sm">← Back to Events</a>
+        </div>
+
+        <div id="event-admin-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get('id');
+
+    async function loadAdminEvent() {
+      const container = document.getElementById('event-admin-container');
+      if (!eventId) {
+        utils.renderError(container, 'No event specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading event record...');
+
+      try {
+        const res = await api.get(`/events/${eventId}`);
+        if (!res.success || !res.data.event) throw new Error(res.message);
+
+        const { event, organization } = res.data;
+
+        container.innerHTML = `
+          <div class="card" style="max-width: 900px;">
+            <div class="card-header">
+              <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">EVENT #${event.eventId}</span>
+                <h1 style="font-size: 1.75rem; margin-top: 0.25rem;">${event.eventName}</h1>
+              </div>
+              ${utils.renderBadge(event.status)}
+            </div>
+
+            <p style="color: var(--text-secondary); line-height: 1.7; margin-bottom: 1.5rem;">${event.description}</p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 2rem;">
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Host Organization</span>
+                <div style="font-weight: 700; color: var(--text-primary); margin-top: 0.2rem;">🏛️ ${organization ? organization.name : event.organizationId}</div>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Category</span>
+                <div style="font-weight: 700; color: var(--accent-cyan); margin-top: 0.2rem;">${event.category}</div>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Dates & Times</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">📅 ${utils.formatDate(event.startDate)} (${event.startTime} - ${event.endTime})</div>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Venue</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">📍 ${event.venue} ${event.room ? `(${event.room})` : ''}</div>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Capacity & Bookings</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">👥 ${event.registrationCount} registered (${event.availableSeats} open)</div>
+              </div>
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Registration Fee</span>
+                <div style="font-weight: 700; font-size: 1.15rem; margin-top: 0.2rem;">
+                  ${event.registrationFee > 0 ? utils.formatCurrency(event.registrationFee) : '<span style="color: var(--accent-emerald);">Free</span>'}
+                </div>
+              </div>
+            </div>
+
+            ${event.rejectionReason ? `
+              <div style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); padding: 1rem; border-radius: var(--radius-md); color: var(--accent-rose); margin-bottom: 1.5rem; font-size: 0.9rem;">
+                <strong>Rejection Feedback:</strong> ${event.rejectionReason}
+              </div>
+            ` : ''}
+
+            <!-- Governance Action Buttons -->
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid var(--border-subtle); padding-top: 1.25rem;">
+              ${event.status === 'Pending Approval' ? `
+                <button class="btn btn-danger" onclick="rejectEventModal()">Reject Proposal ✕</button>
+                <button class="btn btn-success" onclick="approveEventAction()">Approve Proposal ✓</button>
+              ` : ''}
+              ${event.status === 'Approved' ? `
+                <button class="btn btn-primary" onclick="publishEventAction()">Publish to Students 📢</button>
+              ` : ''}
+              ${['Published', 'Approved', 'Ongoing'].includes(event.status) ? `
+                <button class="btn btn-danger btn-sm" onclick="cancelEventAction()">Cancel Event</button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadAdminEvent);
+      }
+    }
+
+    async function approveEventAction() {
+      try {
+        await api.put(`/events/${eventId}/approve`);
+        utils.toast('Event proposal approved!', 'success');
+        loadAdminEvent();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function publishEventAction() {
+      try {
+        await api.put(`/events/${eventId}/publish`);
+        utils.toast('Event published to student catalog!', 'success');
+        loadAdminEvent();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function rejectEventModal() {
+      const reason = prompt('Please enter the institutional reason for rejecting this event proposal:');
+      if (!reason) return;
+
+      try {
+        await api.put(`/events/${eventId}/reject`, { reason });
+        utils.toast('Event rejected with feedback.', 'info');
+        loadAdminEvent();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function cancelEventAction() {
+      const confirmed = await utils.confirmDialog(
+        'Cancel Event',
+        'Are you sure you want to cancel this event? All active tickets will be cancelled.',
+        'Yes, Cancel Event',
+        true
+      );
+      if (!confirmed) return;
+
+      try {
+        await api.put(`/events/${eventId}/cancel`, { reason: 'Institutional cancellation by Admin' });
+        utils.toast('Event safely cancelled.', 'info');
+        loadAdminEvent();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadAdminEvent();
+  </script>
+</body>
+</html>

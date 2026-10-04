@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tickets Issued — CampusNexus Organizer</title>
+  <meta name="description" content="View all tickets issued for your organization's events. Track ticket statuses and QR validation records.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Tickets Issued</h1>
+            <p class="page-subtitle">Track all event tickets generated for your organization's events.</p>
+          </div>
+          <a href="/organizer/qr-scanner.html" class="btn btn-primary">📷 Open QR Scanner</a>
+        </div>
+
+        <!-- Filters -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+            <select class="form-control" id="filter-status" style="width: auto;">
+              <option value="">All Statuses</option>
+              <option value="valid">Valid</option>
+              <option value="used">Used</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="expired">Expired</option>
+            </select>
+            <input type="text" class="form-control" id="search-ticket" placeholder="Search by ticket ID..." style="flex: 1; min-width: 200px;">
+            <button class="btn btn-secondary" onclick="loadTickets()">Filter</button>
+          </div>
+        </div>
+
+        <div id="tickets-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ORGANIZER', 'ADMIN');
+
+    async function loadTickets() {
+      const container = document.getElementById('tickets-container');
+      utils.renderLoading(container);
+      try {
+        const status = document.getElementById('filter-status').value;
+        const search = document.getElementById('search-ticket').value.trim();
+        const params = {};
+        if (status) params.status = status;
+        if (search) params.search = search;
+
+        const res = await api.get('/tickets', params);
+        if (!res.success) throw new Error(res.message);
+        const tickets = res.data.tickets || [];
+
+        if (tickets.length === 0) {
+          utils.renderEmpty(container, 'No tickets found', 'Tickets are generated when registrations are confirmed.');
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="card">
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Ticket ID</th>
+                    <th>Student</th>
+                    <th>Event</th>
+                    <th>Issued On</th>
+                    <th>Price Paid</th>
+                    <th>Status</th>
+                    <th>QR</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tickets.map(t => {
+                    const studentName = (t.student && t.student.name) || (t.user && t.user.name) || t.studentId || t.userId;
+                    const price = t.price ?? t.pricePaid ?? 0;
+                    return `
+                    <tr>
+                      <td><strong style="font-family:monospace;">#${t.ticketId}</strong></td>
+                      <td>
+                        <div style="font-weight:600;">${studentName}</div>
+                        ${t.student?.studentNumber ? `<div style="font-size:0.75rem; color:var(--text-muted);">${t.student.studentNumber}</div>` : ''}
+                      </td>
+                      <td style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        ${t.event ? t.event.eventName : t.eventId}
+                      </td>
+                      <td>${utils.formatDate(t.createdAt)}</td>
+                      <td>${price > 0 ? utils.formatCurrency(price) : '<span style="color:var(--accent-emerald)">Free</span>'}</td>
+                      <td>${utils.renderBadge(t.status)}</td>
+                      <td>
+                        ${t.qrCode ? `<img src="${t.qrCode}" alt="QR" style="width:40px;height:40px;border-radius:4px;background:#fff;padding:2px;">` : '—'}
+                      </td>
+                    </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message);
+      }
+    }
+
+    loadTickets();
+  </script>
+</body>
+</html>

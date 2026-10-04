@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Users & Role Governance — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Users & Role-Based Access Governance</h1>
+            <p class="page-subtitle">Promote users, assign organizer/treasurer permissions, and manage account statuses.</p>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-input-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" class="form-control" placeholder="Search by name, email, or user ID...">
+          </div>
+          <div class="filter-group">
+            <select id="role-filter" class="form-control" style="width: auto;">
+              <option value="">All Roles</option>
+              <option value="STUDENT">Student</option>
+              <option value="VOLUNTEER">Volunteer</option>
+              <option value="ORGANIZER">Organizer</option>
+              <option value="TREASURER">Treasurer</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="users-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    async function loadUsers() {
+      const container = document.getElementById('users-table-container');
+      utils.renderLoading(container, 'Loading user accounts...');
+
+      const search = document.getElementById('search-input').value.trim();
+      const role = document.getElementById('role-filter').value;
+
+      try {
+        const res = await api.get('/users', { search, role });
+        if (!res.success || !res.data.users || res.data.users.length === 0) {
+          utils.renderEmpty(container, 'No users found');
+          return;
+        }
+
+        const users = res.data.users;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>User ID</th>
+                  <th>Name & Email</th>
+                  <th>Current Role</th>
+                  <th>Account Status</th>
+                  <th>Change Role</th>
+                  <th>Account Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${users.map(u => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${u.userId}</strong></td>
+                    <td>
+                      <strong>${u.name}</strong>
+                      <div style="font-size: 0.8rem; color: var(--text-muted);">${u.email}</div>
+                    </td>
+                    <td><span class="badge ${getRoleBadgeClass(u.role)}">${u.role}</span></td>
+                    <td>${utils.renderBadge(u.status)}</td>
+                    <td>
+                      <select onchange="changeRole('${u.userId}', this.value)" class="form-control" style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                        <option value="">Change Role...</option>
+                        <option value="STUDENT" ${u.role === 'STUDENT' ? 'disabled' : ''}>Student</option>
+                        <option value="VOLUNTEER" ${u.role === 'VOLUNTEER' ? 'disabled' : ''}>Volunteer</option>
+                        <option value="ORGANIZER" ${u.role === 'ORGANIZER' ? 'disabled' : ''}>Organizer</option>
+                        <option value="TREASURER" ${u.role === 'TREASURER' ? 'disabled' : ''}>Treasurer</option>
+                        <option value="ADMIN" ${u.role === 'ADMIN' ? 'disabled' : ''}>Admin</option>
+                      </select>
+                    </td>
+                    <td>
+                      <div class="table-actions">
+                        ${u.status === 'Active' ? `
+                          <button class="btn btn-danger btn-sm" onclick="changeStatus('${u.userId}', 'Suspended')">Suspend</button>
+                        ` : `
+                          <button class="btn btn-success btn-sm" onclick="changeStatus('${u.userId}', 'Active')">Activate</button>
+                        `}
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadUsers);
+      }
+    }
+
+    function getRoleBadgeClass(role) {
+      if (role === 'ADMIN') return 'badge-danger';
+      if (role === 'TREASURER') return 'badge-info';
+      if (role === 'ORGANIZER') return 'badge-pending';
+      return 'badge-active';
+    }
+
+    async function changeRole(userId, newRole) {
+      if (!newRole) return;
+      const confirmed = await utils.confirmDialog(
+        'Confirm Role Modification',
+        `Are you sure you want to change user ${userId}'s role to ${newRole}?`,
+        'Update Role'
+      );
+      if (!confirmed) {
+        loadUsers();
+        return;
+      }
+
+      try {
+        await api.put(`/users/${userId}/role`, { role: newRole });
+        utils.toast(`User role updated to ${newRole}`, 'success');
+        loadUsers();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    async function changeStatus(userId, status) {
+      try {
+        await api.put(`/users/${userId}/status`, { status });
+        utils.toast(`User account marked as ${status}`, 'info');
+        loadUsers();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    document.getElementById('search-input').addEventListener('input', () => {
+      clearTimeout(window._searchTimer);
+      window._searchTimer = setTimeout(loadUsers, 300);
+    });
+
+    document.getElementById('role-filter').addEventListener('change', loadUsers);
+
+    loadUsers();
+  </script>
+</body>
+</html>

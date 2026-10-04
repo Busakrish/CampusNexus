@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Institutional Administration</h1>
+            <p class="page-subtitle">Campus-wide governance, event approvals, financial auditing, and role management.</p>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <a href="/admin/events.html" class="btn btn-primary">Review Events 📅</a>
+            <a href="/admin/users-roles.html" class="btn btn-secondary">Manage Roles 🛡️</a>
+          </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+          <div class="metric-card accent-cyan">
+            <div class="metric-info">
+              <span class="metric-label">Active Users</span>
+              <span class="metric-value" id="stat-users">...</span>
+            </div>
+            <div class="metric-icon-box">👥</div>
+          </div>
+
+          <div class="metric-card accent-amber">
+            <div class="metric-info">
+              <span class="metric-label">Pending Event Approvals</span>
+              <span class="metric-value" id="stat-pending-events">...</span>
+            </div>
+            <div class="metric-icon-box">⏳</div>
+          </div>
+
+          <div class="metric-card accent-purple">
+            <div class="metric-info">
+              <span class="metric-label">Organizations</span>
+              <span class="metric-value" id="stat-orgs">...</span>
+            </div>
+            <div class="metric-icon-box">🏛️</div>
+          </div>
+
+          <div class="metric-card accent-emerald">
+            <div class="metric-info">
+              <span class="metric-label">Total Verified Revenue</span>
+              <span class="metric-value" id="stat-revenue">...</span>
+            </div>
+            <div class="metric-icon-box">💰</div>
+          </div>
+        </div>
+
+        <!-- Two Column Content Grid -->
+        <div class="dashboard-grid">
+          
+          <!-- Pending Approvals Card -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Events Requiring Admin Review</h2>
+              <a href="/admin/events.html" class="btn btn-secondary btn-sm">All Events →</a>
+            </div>
+            <div id="pending-events-container"></div>
+          </div>
+
+          <!-- Quick Governance Actions -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Administrative Actions</h2>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <a href="/admin/announcement-form.html" class="btn btn-primary" style="justify-content: flex-start;">📢 Broadcast Campus Announcement</a>
+              <a href="/admin/product-form.html" class="btn btn-secondary" style="justify-content: flex-start;">🛍️ Add Merchandise Catalog Item</a>
+              <a href="/admin/task-form.html" class="btn btn-secondary" style="justify-content: flex-start;">📋 Create Volunteer Task Duty</a>
+              <a href="/admin/fundraiser-form.html" class="btn btn-secondary" style="justify-content: flex-start;">💰 Launch Fundraising Campaign</a>
+              <a href="/admin/users-roles.html" class="btn btn-secondary" style="justify-content: flex-start;">🛡️ Grant / Revoke User Roles</a>
+            </div>
+          </div>
+
+          <!-- Recent Campus Events -->
+          <div class="card dashboard-full">
+            <div class="card-header">
+              <h2 class="card-title">Recent Campus Events Overview</h2>
+            </div>
+            <div id="all-events-container"></div>
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+
+    async function loadAdminDashboard() {
+      try {
+        const res = await api.get('/dashboard/admin');
+        if (!res.success) throw new Error(res.message);
+
+        const { metrics, recentEvents, pendingEventsList } = res.data;
+
+        document.getElementById('stat-users').textContent = metrics.totalUsers;
+        document.getElementById('stat-pending-events').textContent = metrics.pendingApprovalEvents;
+        document.getElementById('stat-orgs').textContent = metrics.totalOrganizations;
+        document.getElementById('stat-revenue').textContent = utils.formatCurrency(metrics.totalRevenue);
+
+        // Pending events
+        const pendingContainer = document.getElementById('pending-events-container');
+        if (!pendingEventsList || pendingEventsList.length === 0) {
+          utils.renderEmpty(pendingContainer, 'No pending event submissions', 'All organizer event proposals have been reviewed.');
+        } else {
+          pendingContainer.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+              ${pendingEventsList.map(e => `
+                <div style="padding: 1rem; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                  <div>
+                    <strong style="font-size: 1rem;">${e.eventName}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">
+                      📍 ${e.venue} • 📅 ${utils.formatDate(e.startDate)} • 👥 Cap: ${e.maximumCapacity}
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 0.5rem;">
+                    <a href="/admin/event-details.html?id=${e.eventId}" class="btn btn-primary btn-sm">Review Proposal</a>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        // Recent events table
+        const allEvtContainer = document.getElementById('all-events-container');
+        if (!recentEvents || recentEvents.length === 0) {
+          utils.renderEmpty(allEvtContainer, 'No events in system');
+        } else {
+          allEvtContainer.innerHTML = `
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Event ID</th>
+                    <th>Event Title</th>
+                    <th>Category</th>
+                    <th>Date & Time</th>
+                    <th>Capacity</th>
+                    <th>Fee</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recentEvents.map(e => `
+                    <tr>
+                      <td><strong style="font-family: monospace;">#${e.eventId}</strong></td>
+                      <td><strong>${e.eventName}</strong></td>
+                      <td>${e.category}</td>
+                      <td>${utils.formatDate(e.startDate)} (${e.startTime})</td>
+                      <td>${e.registrationCount} / ${e.maximumCapacity}</td>
+                      <td>${e.registrationFee > 0 ? utils.formatCurrency(e.registrationFee) : 'Free'}</td>
+                      <td>${utils.renderBadge(e.status)}</td>
+                      <td>
+                        <a href="/admin/event-details.html?id=${e.eventId}" class="btn btn-secondary btn-sm">Manage</a>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadAdminDashboard();
+  </script>
+</body>
+</html>

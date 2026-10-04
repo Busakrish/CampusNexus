@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assigned Tasks — CampusNexus Volunteer</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Assigned Volunteer Tasks</h1>
+            <p class="page-subtitle">Track operational duties, event setups, and update progress status.</p>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="status-filter" class="form-control" style="width: auto;">
+              <option value="">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="tasks-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('VOLUNTEER', 'ADMIN');
+
+    async function loadTasks() {
+      const container = document.getElementById('tasks-table-container');
+      utils.renderLoading(container, 'Loading your assigned tasks...');
+
+      const status = document.getElementById('status-filter').value;
+
+      try {
+        const res = await api.get('/tasks', { status });
+        if (!res.success || !res.data.tasks || res.data.tasks.length === 0) {
+          utils.renderEmpty(container, 'No tasks found', 'There are no tasks matching the selected filter.');
+          return;
+        }
+
+        const tasks = res.data.tasks;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Task ID</th>
+                  <th>Title & Description</th>
+                  <th>Due Date</th>
+                  <th>Spending Limit</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tasks.map(t => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${t.taskId}</strong></td>
+                    <td>
+                      <strong>${t.title}</strong>
+                      <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem;">${t.description}</div>
+                    </td>
+                    <td>${utils.formatDate(t.dueDate)}</td>
+                    <td>${t.spendingLimit > 0 ? utils.formatCurrency(t.spendingLimit) : '<span style="color: var(--text-muted);">$0.00</span>'}</td>
+                    <td>${utils.renderBadge(t.status)}</td>
+                    <td>
+                      <div class="table-actions">
+                        <a href="/volunteer/task-details.html?id=${t.taskId}" class="btn btn-secondary btn-sm">View</a>
+                        ${t.status === 'Pending' ? `
+                          <button class="btn btn-primary btn-sm" onclick="updateStatus('${t.taskId}', 'In Progress')">Start Task</button>
+                        ` : ''}
+                        ${t.status === 'In Progress' ? `
+                          <button class="btn btn-success btn-sm" onclick="updateStatus('${t.taskId}', 'Completed')">Mark Done ✓</button>
+                        ` : ''}
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadTasks);
+      }
+    }
+
+    async function updateStatus(taskId, status) {
+      try {
+        await api.put(`/tasks/${taskId}/status`, { status });
+        utils.toast(`Task status updated to ${status}`, 'success');
+        loadTasks();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    document.getElementById('status-filter').addEventListener('change', loadTasks);
+
+    loadTasks();
+  </script>
+</body>
+</html>

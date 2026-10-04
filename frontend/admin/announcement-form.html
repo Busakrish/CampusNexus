@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Announcement — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/admin/announcements.html" class="btn btn-secondary btn-sm">← Back to Announcements</a>
+        </div>
+
+        <div class="card" style="max-width: 760px;">
+          <h1 class="page-title" style="font-size: 1.6rem; margin-bottom: 1.5rem;">Broadcast Campus Announcement</h1>
+
+          <form id="ann-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="organizationId">Publishing Organization *</label>
+                <select id="organizationId" class="form-control" required></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="audience">Target Audience *</label>
+                <select id="audience" class="form-control">
+                  <option value="All">All Campus Users</option>
+                  <option value="Students">Students Only</option>
+                  <option value="Volunteers">Volunteers Only</option>
+                  <option value="Treasurer">Treasurers Only</option>
+                  <option value="Organizers">Organizers Only</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="title">Announcement Headline *</label>
+              <input type="text" id="title" class="form-control" placeholder="e.g. Campus Spring Festival Registration Now Open" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="content">Announcement Message Body *</label>
+              <textarea id="content" class="form-control" style="min-height: 140px;" placeholder="Write official announcement details..." required></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+              <a href="/admin/announcements.html" class="btn btn-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary" id="submit-btn">Publish & Broadcast Alert</button>
+            </div>
+          </form>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN', 'ORGANIZER');
+
+    async function loadOrgs() {
+      try {
+        const res = await api.get('/organizations');
+        if (res.success && res.data.organizations) {
+          const select = document.getElementById('organizationId');
+          select.innerHTML = res.data.organizations.map(o => `<option value="${o.organizationId}">${o.name}</option>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('ann-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+
+      const payload = {
+        organizationId: document.getElementById('organizationId').value,
+        audience: document.getElementById('audience').value,
+        title: document.getElementById('title').value.trim(),
+        content: document.getElementById('content').value.trim(),
+        scope: 'CAMPUS'
+      };
+
+      try {
+        await api.post('/announcements', payload);
+        utils.toast('Announcement broadcasted and alerts dispatched!', 'success');
+        setTimeout(() => window.location.href = '/admin/announcements.html', 500);
+      } catch (err) {
+        utils.toast(err.message, 'error');
+        btn.disabled = false;
+      }
+    });
+
+    loadOrgs();
+  </script>
+</body>
+</html>

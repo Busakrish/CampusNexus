@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Claims — CampusNexus Volunteer</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Volunteer Expense Claims & Reimbursements</h1>
+            <p class="page-subtitle">Submit receipts and claim reimbursement for task and event operational purchases.</p>
+          </div>
+          <button class="btn btn-primary" onclick="openExpenseModal()">+ Submit Expense Claim</button>
+        </div>
+
+        <div class="card">
+          <div id="expenses-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Submit Expense Modal -->
+  <div class="modal-overlay" id="expense-modal">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 1.25rem; font-size: 1.3rem;">Submit New Expense Claim</h3>
+      <form id="expense-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="exp-amount">Amount Spent ($) *</label>
+            <input type="number" id="exp-amount" class="form-control" min="0.01" step="any" placeholder="45.00" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="exp-category">Expense Category</label>
+            <select id="exp-category" class="form-control">
+              <option value="Logistics">Logistics</option>
+              <option value="Food & Refreshments">Food & Refreshments</option>
+              <option value="Printing & Stationery">Printing & Stationery</option>
+              <option value="Equipment">Equipment</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Travel">Travel</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="exp-desc">Description of Purchase *</label>
+          <textarea id="exp-desc" class="form-control" placeholder="Describe items purchased, vendor, and event purpose..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="exp-receipt">Receipt Image / Proof URL</label>
+          <input type="url" id="exp-receipt" class="form-control" placeholder="https://... receipt image link">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeExpenseModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Submit to Treasurer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('VOLUNTEER', 'ADMIN');
+
+    async function loadExpenses() {
+      const container = document.getElementById('expenses-table-container');
+      utils.renderLoading(container, 'Loading your expense claims...');
+
+      try {
+        const res = await api.get('/expenses');
+        if (!res.success || !res.data.expenses || res.data.expenses.length === 0) {
+          utils.renderEmpty(container, 'No expense claims submitted yet', 'Spent personal funds for club tasks? Submit a receipt to get reimbursed.');
+          return;
+        }
+
+        const expenses = res.data.expenses;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Claim ID</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Submitted Date</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${expenses.map(e => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${e.expenseId}</strong></td>
+                    <td>${e.category}</td>
+                    <td>${e.description}</td>
+                    <td><strong style="color: var(--text-primary);">${utils.formatCurrency(e.amount)}</strong></td>
+                    <td>${utils.formatDate(e.createdAt)}</td>
+                    <td>${utils.renderBadge(e.status)}</td>
+                    <td>
+                      <a href="/volunteer/expense-details.html?id=${e.expenseId}" class="btn btn-secondary btn-sm">View Details</a>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadExpenses);
+      }
+    }
+
+    function openExpenseModal() {
+      document.getElementById('expense-modal').classList.add('active');
+    }
+
+    function closeExpenseModal() {
+      document.getElementById('expense-modal').classList.remove('active');
+    }
+
+    document.getElementById('expense-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        amount: Number(document.getElementById('exp-amount').value),
+        category: document.getElementById('exp-category').value,
+        description: document.getElementById('exp-desc').value.trim(),
+        receiptUrl: document.getElementById('exp-receipt').value.trim()
+      };
+
+      try {
+        const res = await api.post('/expenses', payload);
+        utils.toast(res.message || 'Expense submitted for Treasurer review', 'success');
+        closeExpenseModal();
+        loadExpenses();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    });
+
+    loadExpenses();
+  </script>
+</body>
+</html>

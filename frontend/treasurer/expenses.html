@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Audit & Approvals — CampusNexus Treasurer</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Expense Claims & Audit Queue</h1>
+            <p class="page-subtitle">Review volunteer and organizer expense receipts, verify against budgets, and approve reimbursements.</p>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="filter-group">
+            <select id="status-filter" class="form-control" style="width: auto;">
+              <option value="">All Statuses</option>
+              <option value="Pending">Pending Review ⏳</option>
+              <option value="Approved">Approved ✓</option>
+              <option value="Reimbursed">Reimbursed 💸</option>
+              <option value="Rejected">Rejected ✕</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="expenses-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+
+    async function loadExpenses() {
+      const container = document.getElementById('expenses-table-container');
+      utils.renderLoading(container, 'Loading expense claims...');
+
+      const status = document.getElementById('status-filter').value;
+
+      try {
+        const res = await api.get('/expenses', { status });
+        if (!res.success || !res.data.expenses || res.data.expenses.length === 0) {
+          utils.renderEmpty(container, 'No expense claims found');
+          return;
+        }
+
+        const expenses = res.data.expenses;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Claim ID</th>
+                  <th>Submitted By</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Submitted Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${expenses.map(e => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${e.expenseId}</strong></td>
+                    <td>
+                      <strong>${e.submitter ? e.submitter.name : e.submittedBy}</strong>
+                      <div style="font-size: 0.8rem; color: var(--text-muted);">${e.submitter ? e.submitter.email : ''}</div>
+                    </td>
+                    <td>${e.category}</td>
+                    <td>${e.description}</td>
+                    <td><strong style="color: var(--text-primary); font-size: 0.95rem;">${utils.formatCurrency(e.amount)}</strong></td>
+                    <td>${utils.formatDate(e.createdAt)}</td>
+                    <td>${utils.renderBadge(e.status)}</td>
+                    <td>
+                      <div class="table-actions">
+                        <a href="/treasurer/expense-details.html?id=${e.expenseId}" class="btn btn-secondary btn-sm">Audit & Review</a>
+                        ${e.status === 'Pending' ? `
+                          <button class="btn btn-primary btn-sm" onclick="quickApprove('${e.expenseId}', ${e.amount})">Approve ✓</button>
+                        ` : ''}
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadExpenses);
+      }
+    }
+
+    async function quickApprove(expenseId, amount) {
+      const confirmed = await utils.confirmDialog(
+        'Approve Expense Claim',
+        `Approve expense #${expenseId} for ${utils.formatCurrency(amount)} and queue for reimbursement disbursement?`,
+        'Approve & Queue'
+      );
+      if (!confirmed) return;
+
+      try {
+        await api.put(`/expenses/${expenseId}/approve`);
+        utils.toast('Expense approved and reimbursement queued!', 'success');
+        loadExpenses();
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    document.getElementById('status-filter').addEventListener('change', loadExpenses);
+
+    loadExpenses();
+  </script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Student Overview</h1>
+            <p class="page-subtitle">Track your club memberships, registered events, QR tickets, and orders.</p>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <a href="/student/events.html" class="btn btn-primary">Browse Events 📅</a>
+            <a href="/student/tickets.html" class="btn btn-secondary">My QR Tickets 🎟️</a>
+          </div>
+        </div>
+
+        <!-- Live Metrics Grid -->
+        <div class="metrics-grid" id="metrics-container">
+          <div class="metric-card accent-cyan">
+            <div class="metric-info">
+              <span class="metric-label">Active Memberships</span>
+              <span class="metric-value" id="stat-memberships">...</span>
+            </div>
+            <div class="metric-icon-box">🏛️</div>
+          </div>
+
+          <div class="metric-card accent-purple">
+            <div class="metric-info">
+              <span class="metric-label">Valid Tickets</span>
+              <span class="metric-value" id="stat-tickets">...</span>
+            </div>
+            <div class="metric-icon-box">🎟️</div>
+          </div>
+
+          <div class="metric-card accent-emerald">
+            <div class="metric-info">
+              <span class="metric-label">Merchandise Orders</span>
+              <span class="metric-value" id="stat-orders">...</span>
+            </div>
+            <div class="metric-icon-box">🛍️</div>
+          </div>
+
+          <div class="metric-card accent-rose">
+            <div class="metric-info">
+              <span class="metric-label">Unread Alerts</span>
+              <span class="metric-value" id="stat-notifs">...</span>
+            </div>
+            <div class="metric-icon-box">🔔</div>
+          </div>
+        </div>
+
+        <!-- Dashboard Two-Column Grid -->
+        <div class="dashboard-grid">
+          
+          <!-- Upcoming Events Card -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Upcoming Campus Events</h2>
+              <a href="/student/events.html" class="btn btn-secondary btn-sm">View All →</a>
+            </div>
+            <div id="events-container"></div>
+          </div>
+
+          <!-- Active QR Tickets Sidebar Card -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">My Active Tickets</h2>
+              <a href="/student/tickets.html" class="btn btn-secondary btn-sm">All Tickets →</a>
+            </div>
+            <div id="tickets-container"></div>
+          </div>
+
+          <!-- Recent Orders Card -->
+          <div class="card dashboard-full">
+            <div class="card-header">
+              <h2 class="card-title">Recent Store Orders</h2>
+              <a href="/student/orders.html" class="btn btn-secondary btn-sm">Order History →</a>
+            </div>
+            <div id="orders-container"></div>
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    async function loadStudentDashboard() {
+      try {
+        const res = await api.get('/dashboard/student');
+        if (!res.success) throw new Error(res.message);
+
+        const { metrics, upcomingEvents, activeTickets, recentOrders } = res.data;
+
+        // Metrics
+        document.getElementById('stat-memberships').textContent = metrics.activeMembershipsCount;
+        document.getElementById('stat-tickets').textContent = metrics.activeTicketsCount;
+        document.getElementById('stat-orders').textContent = metrics.totalOrdersCount;
+        document.getElementById('stat-notifs').textContent = metrics.unreadNotificationsCount;
+
+        // Upcoming Events
+        const evtContainer = document.getElementById('events-container');
+        if (!upcomingEvents || upcomingEvents.length === 0) {
+          utils.renderEmpty(evtContainer, 'No upcoming events', 'Check back later for newly announced workshops.');
+        } else {
+          evtContainer.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+              ${upcomingEvents.map(e => `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); gap: 1rem;">
+                  <div>
+                    <strong style="font-size: 1rem; display: block; margin-bottom: 0.25rem;">${e.eventName}</strong>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 1rem; flex-wrap: wrap;">
+                      <span>📍 ${e.venue}</span>
+                      <span>📅 ${utils.formatDate(e.startDate)} (${e.startTime})</span>
+                      <span>💰 ${e.registrationFee > 0 ? utils.formatCurrency(e.registrationFee) : '<span style="color: var(--accent-emerald);">Free</span>'}</span>
+                    </div>
+                  </div>
+                  <a href="/student/event-details.html?id=${e.eventId}" class="btn btn-primary btn-sm">Details →</a>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        // Active Tickets
+        const tktContainer = document.getElementById('tickets-container');
+        if (!activeTickets || activeTickets.length === 0) {
+          utils.renderEmpty(tktContainer, 'No active tickets', 'Register for an event to get your QR pass.');
+        } else {
+          tktContainer.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+              ${activeTickets.map(t => `
+                <div style="padding: 0.95rem; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 0.75rem;">
+                  ${t.qrCode ? `<img src="${t.qrCode}" alt="QR" style="width: 50px; height: 50px; border-radius: 4px; background: #fff; padding: 2px;">` : ''}
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 700; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      ${t.event ? t.event.eventName : 'Event Ticket'}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace;">#${t.ticketId}</div>
+                    <div style="margin-top: 0.25rem;">${utils.renderBadge(t.status)}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        // Recent Orders
+        const ordContainer = document.getElementById('orders-container');
+        if (!recentOrders || recentOrders.length === 0) {
+          utils.renderEmpty(ordContainer, 'No recent store orders', 'Explore campus hoodies, bottles and accessories.');
+        } else {
+          ordContainer.innerHTML = `
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Items</th>
+                    <th>Total Amount</th>
+                    <th>Placed On</th>
+                    <th>Fulfillment Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recentOrders.map(o => `
+                    <tr>
+                      <td><strong style="font-family: monospace;">#${o.orderId}</strong></td>
+                      <td>${o.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}</td>
+                      <td><strong>${utils.formatCurrency(o.totalAmount)}</strong></td>
+                      <td>${utils.formatDate(o.createdAt)}</td>
+                      <td>${utils.renderBadge(o.status)}</td>
+                      <td>
+                        <a href="/student/order-details.html?id=${o.orderId}" class="btn btn-secondary btn-sm">View Order</a>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadStudentDashboard();
+  </script>
+</body>
+</html>

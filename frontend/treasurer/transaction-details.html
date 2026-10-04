@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transaction Audit Details — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <a href="/treasurer/transactions.html" class="btn btn-secondary btn-sm">← Back to Ledger</a>
+        </div>
+
+        <div id="txn-details-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+
+    const params = new URLSearchParams(window.location.search);
+    const transactionId = params.get('id');
+
+    async function loadTxn() {
+      const container = document.getElementById('txn-details-container');
+      if (!transactionId) {
+        utils.renderError(container, 'No transaction ID specified.');
+        return;
+      }
+
+      utils.renderLoading(container, 'Loading transaction record...');
+
+      try {
+        const res = await api.get(`/transactions/${transactionId}`);
+        if (!res.success || !res.data.transaction) throw new Error(res.message);
+
+        const { transaction, organization } = res.data;
+
+        container.innerHTML = `
+          <div class="card" style="max-width: 760px;">
+            <div class="card-header">
+              <div>
+                <span style="font-size: 0.8rem; color: var(--text-muted); font-family: monospace;">TXN #${transaction.transactionId}</span>
+                <h1 style="font-size: 1.6rem; margin-top: 0.25rem;">Ledger Audit Record</h1>
+              </div>
+              <span class="badge ${transaction.type === 'INCOME' ? 'badge-active' : 'badge-danger'}">${transaction.type}</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 1.5rem;">
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Transaction Amount</span>
+                <div style="font-size: 1.5rem; font-weight: 800; color: ${transaction.type === 'INCOME' ? 'var(--accent-emerald)' : 'var(--accent-rose)'}; margin-top: 0.2rem;">
+                  ${transaction.type === 'INCOME' ? '+' : '-'}${utils.formatCurrency(transaction.amount)}
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Category</span>
+                <div style="font-weight: 700; color: var(--text-primary); margin-top: 0.2rem;">
+                  ${transaction.category}
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Operational Source Entity</span>
+                <div style="font-weight: 700; font-family: monospace; color: var(--accent-cyan); margin-top: 0.2rem;">
+                  ${transaction.sourceEntity} (#${transaction.sourceId})
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Posted Timestamp</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">
+                  📅 ${utils.formatDateTime(transaction.createdAt)}
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Organization</span>
+                <div style="font-weight: 700; margin-top: 0.2rem;">
+                  🏛️ ${organization ? organization.name : transaction.organizationId}
+                </div>
+              </div>
+
+              <div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Processed By User</span>
+                <div style="font-weight: 700; font-family: monospace; margin-top: 0.2rem;">
+                  👤 ${transaction.processedBy}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 style="margin-bottom: 0.4rem; font-size: 1rem;">Description / Memo</h4>
+              <p style="color: var(--text-secondary); line-height: 1.6; font-size: 0.95rem;">${transaction.description}</p>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadTxn);
+      }
+    }
+
+    loadTxn();
+  </script>
+</body>
+</html>

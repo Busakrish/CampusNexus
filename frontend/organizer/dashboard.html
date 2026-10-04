@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Organizer Dashboard — CampusNexus</title>
+  <meta name="description" content="Organizer command center: manage events, registrations, tickets, and live attendance check-ins for your organization.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Organizer Command Center</h1>
+            <p class="page-subtitle">Manage events, registrations, QR ticket check-ins, and live attendance for your organization.</p>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <a href="/organizer/events.html" class="btn btn-primary">Manage Events 📅</a>
+            <a href="/organizer/qr-scanner.html" class="btn btn-secondary">QR Check-in 📷</a>
+          </div>
+        </div>
+
+        <!-- Live Metrics Grid -->
+        <div class="metrics-grid" id="metrics-container">
+          <div class="metric-card accent-cyan">
+            <div class="metric-info">
+              <span class="metric-label">Total Events</span>
+              <span class="metric-value" id="stat-events">...</span>
+            </div>
+            <div class="metric-icon-box">📅</div>
+          </div>
+
+          <div class="metric-card accent-purple">
+            <div class="metric-info">
+              <span class="metric-label">Total Registrations</span>
+              <span class="metric-value" id="stat-registrations">...</span>
+            </div>
+            <div class="metric-icon-box">📝</div>
+          </div>
+
+          <div class="metric-card accent-emerald">
+            <div class="metric-info">
+              <span class="metric-label">Tickets Issued</span>
+              <span class="metric-value" id="stat-tickets">...</span>
+            </div>
+            <div class="metric-icon-box">🎟️</div>
+          </div>
+
+          <div class="metric-card accent-amber">
+            <div class="metric-info">
+              <span class="metric-label">Live Attendance</span>
+              <span class="metric-value" id="stat-attendance">...</span>
+            </div>
+            <div class="metric-icon-box">✅</div>
+          </div>
+        </div>
+
+        <!-- Dashboard Two-Column Grid -->
+        <div class="dashboard-grid">
+
+          <!-- Upcoming Events -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">My Events</h2>
+              <a href="/organizer/events.html" class="btn btn-secondary btn-sm">Manage All →</a>
+            </div>
+            <div id="events-container"></div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Quick Actions</h2>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0;">
+              <a href="/organizer/events.html" class="btn btn-secondary" style="justify-content: flex-start; gap: 1rem;">
+                <span style="font-size: 1.2rem;">📅</span>
+                <div style="text-align: left;"><div style="font-weight: 700;">Create New Event</div><div style="font-size: 0.8rem; color: var(--text-muted);">Set up capacity, pricing &amp; schedule</div></div>
+              </a>
+              <a href="/organizer/registrations.html" class="btn btn-secondary" style="justify-content: flex-start; gap: 1rem;">
+                <span style="font-size: 1.2rem;">📝</span>
+                <div style="text-align: left;"><div style="font-weight: 700;">View Registrations</div><div style="font-size: 0.8rem; color: var(--text-muted);">Approve or review pending requests</div></div>
+              </a>
+              <a href="/organizer/qr-scanner.html" class="btn btn-secondary" style="justify-content: flex-start; gap: 1rem;">
+                <span style="font-size: 1.2rem;">📷</span>
+                <div style="text-align: left;"><div style="font-weight: 700;">QR Ticket Scanner</div><div style="font-size: 0.8rem; color: var(--text-muted);">Real-time gate check-in validation</div></div>
+              </a>
+              <a href="/organizer/attendance.html" class="btn btn-secondary" style="justify-content: flex-start; gap: 1rem;">
+                <span style="font-size: 1.2rem;">✅</span>
+                <div style="text-align: left;"><div style="font-weight: 700;">Live Attendance</div><div style="font-size: 0.8rem; color: var(--text-muted);">Track who has checked in</div></div>
+              </a>
+              <a href="/organizer/announcements.html" class="btn btn-secondary" style="justify-content: flex-start; gap: 1rem;">
+                <span style="font-size: 1.2rem;">📢</span>
+                <div style="text-align: left;"><div style="font-weight: 700;">Post Announcement</div><div style="font-size: 0.8rem; color: var(--text-muted);">Notify members and participants</div></div>
+              </a>
+            </div>
+          </div>
+
+          <!-- Recent Registrations -->
+          <div class="card dashboard-full">
+            <div class="card-header">
+              <h2 class="card-title">Recent Registrations</h2>
+              <a href="/organizer/registrations.html" class="btn btn-secondary btn-sm">All Registrations →</a>
+            </div>
+            <div id="registrations-container"></div>
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ORGANIZER', 'ADMIN');
+
+    async function loadOrganizerDashboard() {
+      try {
+        const res = await api.get('/dashboard/organizer');
+        if (!res.success) throw new Error(res.message);
+
+        const { metrics, myEvents, recentRegistrations } = res.data;
+
+        document.getElementById('stat-events').textContent = metrics.totalEventsCount ?? 0;
+        document.getElementById('stat-registrations').textContent = metrics.totalRegistrationsCount ?? 0;
+        document.getElementById('stat-tickets').textContent = metrics.totalTicketsIssued ?? 0;
+        document.getElementById('stat-attendance').textContent = metrics.totalAttendanceCount ?? 0;
+
+        // Events
+        const evtContainer = document.getElementById('events-container');
+        if (!myEvents || myEvents.length === 0) {
+          utils.renderEmpty(evtContainer, 'No events yet', 'Create your first event to start managing registrations and tickets.');
+        } else {
+          evtContainer.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+              ${myEvents.slice(0, 6).map(e => `
+                <div style="padding: 1rem; background: var(--bg-surface-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                  <div style="flex: 1; min-width: 0;">
+                    <strong style="font-size: 0.95rem; display: block; margin-bottom: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${e.eventName}</strong>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                      <span>📅 ${utils.formatDate(e.startDate)}</span>
+                      <span>👥 ${e.registrationCount ?? e.registeredCount ?? 0}/${e.maximumCapacity ?? e.capacityLimit ?? 100} seats</span>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;">
+                    ${utils.renderBadge(e.status)}
+                    <a href="/organizer/event-details.html?id=${e.eventId}" class="btn btn-secondary btn-sm">Manage</a>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        // Recent Registrations
+        const regContainer = document.getElementById('registrations-container');
+        if (!recentRegistrations || recentRegistrations.length === 0) {
+          utils.renderEmpty(regContainer, 'No registrations yet', 'Registrations will appear here once students sign up for your events.');
+        } else {
+          regContainer.innerHTML = `
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Registration ID</th>
+                    <th>Student</th>
+                    <th>Event</th>
+                    <th>Registered On</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${recentRegistrations.map(r => `
+                    <tr>
+                      <td><strong style="font-family: monospace;">#${r.registrationId}</strong></td>
+                      <td>${r.user ? r.user.name : r.userId}</td>
+                      <td>${r.event ? r.event.eventName : r.eventId}</td>
+                      <td>${utils.formatDate(r.createdAt)}</td>
+                      <td>${utils.renderBadge(r.status)}</td>
+                      <td>
+                        <a href="/organizer/registrations.html?id=${r.registrationId}" class="btn btn-secondary btn-sm">View</a>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+      } catch (err) {
+        utils.toast(err.message, 'error');
+      }
+    }
+
+    loadOrganizerDashboard();
+  </script>
+</body>
+</html>

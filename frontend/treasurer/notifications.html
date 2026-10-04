@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications — CampusNexus Treasurer</title>
+  <meta name="description" content="View treasurer notifications: expense approvals, reimbursement alerts, budget warnings, and financial updates.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Notifications</h1>
+            <p class="page-subtitle">Expense approvals, reimbursement alerts, budget warnings, and financial system updates.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="mark-all-btn">Mark All as Read</button>
+        </div>
+
+        <div id="notifications-container"></div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script src="/js/notifications.js"></script>
+  <script>
+    auth.requireRole('TREASURER', 'ADMIN');
+    initNotificationsPage('notifications-container', 'mark-all-btn');
+  </script>
+</body>
+</html>

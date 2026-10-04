@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Attendance — CampusNexus Organizer</title>
+  <meta name="description" content="Track real-time event attendance. Monitor who has checked in and view attendance records.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Live Attendance Tracker</h1>
+            <p class="page-subtitle">Real-time attendance records for your events. See who has checked in via QR scan.</p>
+          </div>
+          <a href="/organizer/qr-scanner.html" class="btn btn-primary">📷 Open QR Scanner</a>
+        </div>
+
+        <!-- Event Filter -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <label class="form-label" style="margin: 0; white-space: nowrap;">Select Event:</label>
+            <select class="form-control" id="event-select" style="flex: 1; min-width: 250px;" onchange="loadAttendance()">
+              <option value="">— Select an Event —</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadAttendance()">Refresh 🔄</button>
+          </div>
+        </div>
+
+        <!-- Attendance Stats -->
+        <div class="metrics-grid" id="attendance-metrics" style="display: none;">
+          <div class="metric-card accent-cyan">
+            <div class="metric-info">
+              <span class="metric-label">Registered</span>
+              <span class="metric-value" id="stat-registered">0</span>
+            </div>
+            <div class="metric-icon-box">📝</div>
+          </div>
+          <div class="metric-card accent-emerald">
+            <div class="metric-info">
+              <span class="metric-label">Checked In</span>
+              <span class="metric-value" id="stat-checked-in">0</span>
+            </div>
+            <div class="metric-icon-box">✅</div>
+          </div>
+          <div class="metric-card accent-amber">
+            <div class="metric-info">
+              <span class="metric-label">Not Yet In</span>
+              <span class="metric-value" id="stat-absent">0</span>
+            </div>
+            <div class="metric-icon-box">⏳</div>
+          </div>
+          <div class="metric-card accent-purple">
+            <div class="metric-info">
+              <span class="metric-label">Attendance Rate</span>
+              <span class="metric-value" id="stat-rate">0%</span>
+            </div>
+            <div class="metric-icon-box">📊</div>
+          </div>
+        </div>
+
+        <div id="attendance-container">
+          <div class="state-container">
+            <div class="state-icon">📋</div>
+            <div class="state-title">Select an Event</div>
+            <div class="state-subtitle">Choose an event from the dropdown above to view live attendance.</div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ORGANIZER', 'ADMIN');
+
+    async function loadEventsList() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const preselect = urlParams.get('eventId');
+        const res = await api.get('/events', { status: 'Published' });
+        if (res.success && res.data.events) {
+          const select = document.getElementById('event-select');
+          res.data.events.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.eventId;
+            opt.textContent = `${e.eventName} (${utils.formatDate(e.startDate)})`;
+            if (preselect && e.eventId === preselect) opt.selected = true;
+            select.appendChild(opt);
+          });
+          if (preselect) loadAttendance();
+        }
+      } catch (e) {}
+    }
+
+    async function loadAttendance() {
+      const eventId = document.getElementById('event-select').value;
+      const container = document.getElementById('attendance-container');
+      const metricsDiv = document.getElementById('attendance-metrics');
+
+      if (!eventId) {
+        metricsDiv.style.display = 'none';
+        container.innerHTML = `
+          <div class="state-container">
+            <div class="state-icon">📋</div>
+            <div class="state-title">Select an Event</div>
+            <div class="state-subtitle">Choose an event from the dropdown above to view live attendance.</div>
+          </div>`;
+        return;
+      }
+
+      utils.renderLoading(container);
+      try {
+        const res = await api.get('/attendance', { eventId });
+        if (!res.success) throw new Error(res.message);
+        const records = res.data.attendance || [];
+        const stats = res.data.stats || {};
+        const eventInfo = res.data.event || {};
+
+        // Metrics
+        const totalRegistered = eventInfo.registrationCount ?? stats.totalRegistered ?? 0;
+        const checkedIn = stats.totalCheckedIn ?? records.length;
+        const absent = Math.max(0, totalRegistered - checkedIn);
+        const rate = stats.attendanceRate ?? (totalRegistered > 0 ? ((checkedIn / totalRegistered) * 100).toFixed(0) + '%' : '0%');
+
+        document.getElementById('stat-registered').textContent = totalRegistered;
+        document.getElementById('stat-checked-in').textContent = checkedIn;
+        document.getElementById('stat-absent').textContent = absent;
+        document.getElementById('stat-rate').textContent = rate;
+        metricsDiv.style.display = 'grid';
+
+        if (records.length === 0) {
+          utils.renderEmpty(container, 'No check-ins recorded yet', 'Use the QR scanner to begin admitting attendees.');
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Check-in Log</h2>
+              <span style="color: var(--text-muted); font-size: 0.85rem;">${records.length} attendees admitted</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Attendance ID</th>
+                    <th>Student Name</th>
+                    <th>Student ID</th>
+                    <th>Ticket Pass</th>
+                    <th>Check-In Time</th>
+                    <th>Status</th>
+                    <th>Admitted By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${records.map((a, i) => `
+                    <tr>
+                      <td style="color:var(--text-muted);">${i + 1}</td>
+                      <td><strong style="font-family:monospace;">#${a.attendanceId}</strong></td>
+                      <td>
+                        <strong>${a.student ? a.student.name : (a.user ? a.user.name : a.studentId)}</strong>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${a.student ? a.student.email : (a.user ? a.user.email : '')}</div>
+                      </td>
+                      <td><code>${a.student ? a.student.studentNumber : a.studentId}</code></td>
+                      <td style="font-family:monospace;">${a.ticketId}</td>
+                      <td>${a.checkInTime ? new Date(a.checkInTime).toLocaleString() : '—'}</td>
+                      <td>${utils.renderBadge(a.checkInStatus || a.status || 'Checked In')}</td>
+                      <td>${a.scannedBy ? (a.scannedBy.name ? `${a.scannedBy.name} (${a.scannedBy.role})` : a.scannedBy) : 'Gate Staff'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message);
+        metricsDiv.style.display = 'none';
+      }
+    }
+
+    loadEventsList();
+  </script>
+</body>
+</html>

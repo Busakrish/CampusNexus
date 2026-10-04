@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Reports — CampusNexus Organizer</title>
+  <meta name="description" content="View comprehensive event performance reports: attendance rates, revenue, registrations, and seat utilization analytics.">
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Event Performance Reports</h1>
+            <p class="page-subtitle">Comprehensive analytics on attendance, revenue, and seat utilization across all your events.</p>
+          </div>
+        </div>
+
+        <!-- Overall Summary -->
+        <div class="metrics-grid" id="summary-metrics">
+          <div class="metric-card accent-cyan">
+            <div class="metric-info">
+              <span class="metric-label">Total Events</span>
+              <span class="metric-value" id="stat-events">...</span>
+            </div>
+            <div class="metric-icon-box">📅</div>
+          </div>
+          <div class="metric-card accent-purple">
+            <div class="metric-info">
+              <span class="metric-label">Total Registrations</span>
+              <span class="metric-value" id="stat-regs">...</span>
+            </div>
+            <div class="metric-icon-box">📝</div>
+          </div>
+          <div class="metric-card accent-emerald">
+            <div class="metric-info">
+              <span class="metric-label">Total Attendance</span>
+              <span class="metric-value" id="stat-attendance">...</span>
+            </div>
+            <div class="metric-icon-box">✅</div>
+          </div>
+          <div class="metric-card accent-amber">
+            <div class="metric-info">
+              <span class="metric-label">Total Revenue</span>
+              <span class="metric-value" id="stat-revenue">...</span>
+            </div>
+            <div class="metric-icon-box">💰</div>
+          </div>
+        </div>
+
+        <!-- Per-Event Report Table -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Event-by-Event Breakdown</h2>
+          </div>
+          <div id="report-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ORGANIZER', 'ADMIN');
+
+    async function loadReports() {
+      const container = document.getElementById('report-container');
+      utils.renderLoading(container);
+      try {
+        const res = await api.get('/events');
+        if (!res.success) throw new Error(res.message);
+        const events = res.data.events || [];
+
+        // Calculate summary
+        const totalEvents = events.length;
+        const totalRegs = events.reduce((s, e) => s + (e.registrationCount ?? e.registeredCount ?? 0), 0);
+        const totalAttend = events.reduce((s, e) => s + (e.attendanceCount || 0), 0);
+        const totalRevenue = events.reduce((s, e) => s + ((e.registrationCount ?? e.registeredCount ?? 0) * (e.registrationFee || 0)), 0);
+
+        document.getElementById('stat-events').textContent = totalEvents;
+        document.getElementById('stat-regs').textContent = totalRegs;
+        document.getElementById('stat-attendance').textContent = totalAttend;
+        document.getElementById('stat-revenue').textContent = utils.formatCurrency(totalRevenue);
+
+        if (events.length === 0) {
+          utils.renderEmpty(container, 'No events to report', 'Create events to see performance analytics here.');
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Event Name</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Capacity</th>
+                  <th>Registered</th>
+                  <th>Checked In</th>
+                  <th>Attendance Rate</th>
+                  <th>Utilization</th>
+                  <th>Est. Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${events.map(e => {
+                  const regCount = e.registrationCount ?? e.registeredCount ?? 0;
+                  const attCount = e.attendanceCount || 0;
+                  const cap = e.maximumCapacity ?? e.capacityLimit ?? 1;
+                  const attRate = regCount > 0 ? ((attCount / regCount) * 100).toFixed(0) : 0;
+                  const utilRate = ((regCount / cap) * 100).toFixed(0);
+                  const revenue = regCount * (e.registrationFee || 0);
+                  const utilColor = utilRate >= 90 ? 'var(--accent-rose)' : utilRate >= 60 ? 'var(--accent-amber)' : 'var(--accent-emerald)';
+                  return `
+                    <tr>
+                      <td>
+                        <a href="/organizer/event-details.html?id=${e.eventId}" style="font-weight:600; color:var(--primary);">${e.eventName}</a>
+                      </td>
+                      <td>${utils.formatDate(e.startDate)}</td>
+                      <td>${utils.renderBadge(e.status)}</td>
+                      <td>${cap}</td>
+                      <td>${regCount}</td>
+                      <td>${attCount}</td>
+                      <td>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                          <div style="flex:1; height:6px; background:var(--bg-surface-elevated); border-radius:3px; min-width:60px;">
+                            <div style="height:100%; width:${attRate}%; background:var(--accent-emerald); border-radius:3px;"></div>
+                          </div>
+                          <span>${attRate}%</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                          <div style="flex:1; height:6px; background:var(--bg-surface-elevated); border-radius:3px; min-width:60px;">
+                            <div style="height:100%; width:${Math.min(100,utilRate)}%; background:${utilColor}; border-radius:3px;"></div>
+                          </div>
+                          <span>${utilRate}%</span>
+                        </div>
+                      </td>
+                      <td><strong>${utils.formatCurrency(revenue)}</strong></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message);
+      }
+    }
+
+    loadReports();
+  </script>
+</body>
+</html>

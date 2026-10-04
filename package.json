@@ -1,0 +1,38 @@
+{
+  "name": "campusnexus-student-organization-management-system",
+  "version": "1.0.0",
+  "description": "Production-quality Student Organization Management System connecting 5 roles: Student, Volunteer, Admin, Treasurer, Organizer.",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js",
+    "seed": "node backend/seed.js",
+    "test": "node backend/tests/run-all-tests.js",
+    "test:backend": "node backend/tests/run-all-tests.js",
+    "test:security": "node backend/tests/run-all-tests.js",
+    "test:e2e": "node backend/tests/e2e-api-qa.js"
+  },
+  "keywords": [
+    "student-organization",
+    "management-system",
+    "express",
+    "mongoose",
+    "mongodb",
+    "vanilla-js"
+  ],
+  "author": "CampusNexus Team",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.3.1",
+    "nodemailer": "^10.0.14",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^9.1.8"
+  }
+}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Orders — CampusNexus</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/tables.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">My Merchandise Orders</h1>
+            <p class="page-subtitle">Track fulfillment progress, payment verification, and pickup status.</p>
+          </div>
+          <a href="/student/merchandise.html" class="btn btn-primary">Browse Store 🛍️</a>
+        </div>
+
+        <div class="card">
+          <div id="orders-table-container"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('STUDENT', 'ADMIN');
+
+    async function loadStudentOrders() {
+      const container = document.getElementById('orders-table-container');
+      utils.renderLoading(container, 'Loading your orders...');
+
+      try {
+        const res = await api.get('/orders');
+        if (!res.success || !res.data.orders || res.data.orders.length === 0) {
+          utils.renderEmpty(container, 'No orders placed yet', 'Browse our campus store for official apparel and accessories.');
+          return;
+        }
+
+        const orders = res.data.orders;
+        container.innerHTML = `
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Purchased Items</th>
+                  <th>Total Amount</th>
+                  <th>Order Date</th>
+                  <th>Payment</th>
+                  <th>Fulfillment Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${orders.map(o => `
+                  <tr>
+                    <td><strong style="font-family: monospace;">#${o.orderId}</strong></td>
+                    <td>
+                      ${o.items.map(i => `<div>${i.name} <em>(${i.variant || 'Default'}, ${i.size || 'M'})</em> x${i.quantity}</div>`).join('')}
+                    </td>
+                    <td><strong style="color: var(--text-primary);">${utils.formatCurrency(o.totalAmount)}</strong></td>
+                    <td>${utils.formatDate(o.createdAt)}</td>
+                    <td>${utils.renderBadge(o.paymentStatus)}</td>
+                    <td>${utils.renderBadge(o.status)}</td>
+                    <td>
+                      <a href="/student/order-details.html?id=${o.orderId}" class="btn btn-secondary btn-sm">View Details</a>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (err) {
+        utils.renderError(container, err.message, loadStudentOrders);
+      }
+    }
+
+    loadStudentOrders();
+  </script>
+</body>
+</html>

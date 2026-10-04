@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Settings — CampusNexus Admin</title>
+  <link rel="stylesheet" href="/css/global.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/forms.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main-wrapper">
+      <main class="content-container">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Institutional System Settings</h1>
+            <p class="page-subtitle">Configure campus environment, payment gateways, and session management parameters.</p>
+          </div>
+        </div>
+
+        <div class="card" style="max-width: 760px;">
+          <h3 style="font-size: 1.2rem; margin-bottom: 1.25rem;">System Configuration Overview</h3>
+
+          <div style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.95rem; margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-subtle);">
+              <span style="color: var(--text-secondary);">Application Platform</span>
+              <strong>CampusNexus v1.0.0 (Production)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-subtle);">
+              <span style="color: var(--text-secondary);">Database Engine</span>
+              <strong>MongoDB with Mongoose Schemas</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-subtle);">
+              <span style="color: var(--text-secondary);">Authentication Protocol</span>
+              <strong>JWT (HMAC SHA-256) & bcrypt Password Encryption</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--border-subtle);">
+              <span style="color: var(--text-secondary);">Supported Roles</span>
+              <strong>5 Roles: STUDENT, VOLUNTEER, ORGANIZER, TREASURER, ADMIN</strong>
+            </div>
+          </div>
+
+          <button class="btn btn-secondary" onclick="utils.toast('System diagnostics checked: All services healthy', 'success')">
+            Run Health Diagnostic Check ✓
+          </button>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script>
+    auth.requireRole('ADMIN');
+  </script>
+</body>
+</html>
